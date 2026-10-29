@@ -218,3 +218,23 @@ SEO: titles like "IELTS Launchpad — Free IELTS Academic Mock Tests with AI Fee
 - CSP via `<meta http-equiv="Content-Security-Policy">` allowing only self, Turnstile, the Worker URL, Groq/Gemini API hosts.
 - No tracking, no cookies set by us.
 - Production build excludes `status: draft` content; dev build shows it with a "DRAFT" badge.
+
+## 11. Milestones (implementation phases)
+Each milestone is done only when lint, typecheck, unit tests, e2e tests and axe all pass in CI.
+
+- **M0 Bootstrap**: Astro + React + TS strict + Tailwind scaffold, ESLint/Prettier, Vitest, Playwright + axe, npm scripts (dev, build, preview, lint, typecheck, test, test:e2e, validate), brand.ts, en.ts, base layout (header, skip link, footer with disclaimer, donation links, licence notice), stub pages for all §9 pages + 404, LICENSE (AGPL-3.0), LICENSE-CONTENT (CC BY-SA 4.0), CONTRIBUTING.md (DCO), NOTICE, README, .env.example, AGENTS.md, GitHub Actions ci.yml + deploy.yml (GitHub Pages).
+- **M1 Content schema & validator**: Zod schemas (§3), content loader excluding drafts in production, `npm run validate` enforcing all §3 rules, draft sample test `content/academic/practice/sample-01` using every interaction type and ≥ 8 qtypes, unit tests incl. failing fixtures.
+- **M2 Grading engine**: §4 normalisation, optional words, number equivalence, word counting, gradeQuestion/gradeTest, error classification, band tables, overall rounding; exhaustive unit tests; perfect-answer-sheet check added to validator.
+- **M3 Reading runner**: 5 interaction components (Choose-N limit, keyboard + touch drag-and-drop), templates and images, split pane / mobile tabs, navigator, flags, highlighting + notes, font size, timer, exam/practice modes, Dexie storage (§6 tables), autosave + resume; e2e per interaction type.
+- **M4 Listening runner & Results**: exam mode (play once, auto-advance, 2-min review, auto-submit) and practice mode; Results page with per-question review, evidence highlighting, "Play answer location", prefilled GitHub issue link.
+- **M5 Dashboard & data**: band history, accuracy by qtype, error-class frequency, top-3 weaknesses + tips.yaml, Tests list page, Settings (font size, export/import, delete all data).
+- **M6 Worker & Writing/Speaking**: Cloudflare Worker per §8 (Turnstile, Durable Object limits, Groq → Cerebras failover, Whisper, 3-run median, Zod validation, no logging, /v1/health) with mocked-provider tests; Writing and Speaking pages; own-key mode; worker/README.md deploy steps.
+- **M7 Content tools**: generation prompt templates, blind-solver CLI, Azure TTS script with timestamps, local-only review app (`npm run review`), docs/CONTENT-WORKFLOW.md.
+- **M8 Planner, static pages & release**: Planner (§7), Official resources page and other static pages, SEO, CSP, weekly health.yml workflow, full audit, docs/RELEASE-CHECKLIST.md.
+
+### Default decisions for implementation questions
+- External values not yet available (Worker URL, Turnstile site key, API keys, model IDs): read from env/config with placeholders in `.env.example`; never block on them. Use Cloudflare's documented Turnstile **test keys** in dev and tests.
+- Audio in the sample test: a short generated silent/tone `.opus` file committed to the repo.
+- Real mock content is NOT part of the code work; only the draft sample test is.
+- Package manager: npm. Node: current LTS, pinned in `.nvmrc`.
+- When in doubt, choose the simpler option that satisfies the spec and write the assumption into the PR description.
