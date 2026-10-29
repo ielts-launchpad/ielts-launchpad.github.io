@@ -1,0 +1,14 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { en } from '@/i18n/en';
+
+const page = en.pages.notFound;
+---
+
+<BaseLayout title={page.title} description={page.description}>
+  <h1 class="text-2xl font-bold">{page.heading}</h1>
+  <p class="mt-4 text-slate-700">{page.intro}</p>
+  <p class="mt-4">
+    <a class="underline" href="/">{page.homeLink}</a>
+  </p>
+</BaseLayout>

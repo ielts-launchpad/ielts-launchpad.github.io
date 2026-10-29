@@ -1,0 +1,15 @@
+dist/
+.astro/
+node_modules/
+playwright-report/
+test-results/
+coverage/
+package-lock.json
+LICENSE
+LICENSE-CONTENT
+
+# Hand-authored docs and scripts kept in their original formatting.
+.github/copilot-instructions.md
+.github/docs/
+docs/
+tools/github/

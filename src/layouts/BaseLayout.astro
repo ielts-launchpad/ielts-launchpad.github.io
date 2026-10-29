@@ -1,0 +1,60 @@
+---
+import '@/styles/global.css';
+import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
+import { brand } from '@/config/brand';
+import { en } from '@/i18n/en';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+
+// Baseline CSP (SPEC §10). Tightened in M8.5. Allows self + Turnstile + the AI
+// provider hosts the Worker / own-key mode talk to.
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' https://challenges.cloudflare.com",
+  'frame-src https://challenges.cloudflare.com',
+  "connect-src 'self' https://api.groq.com https://api.cerebras.ai https://generativelanguage.googleapis.com",
+  "img-src 'self' data:",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
+const canonical = new URL(Astro.url.pathname, brand.url).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content={csp} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+  </head>
+  <body class="flex min-h-screen flex-col bg-white text-slate-900">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-slate-900 focus:px-3 focus:py-2 focus:text-white"
+    >
+      {en.common.skipToContent}
+    </a>
+    <Header />
+    <main id="main" class="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
