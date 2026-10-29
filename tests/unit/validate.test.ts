@@ -1,9 +1,11 @@
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { LoadedTest } from '../../src/engine/content/loader';
 import { validateTest } from '../../src/engine/content/validate';
 
 const QUOTE = 'the bees are busy';
 const passageText = `${QUOTE} ${'lorem '.repeat(700)}`.trim();
+const existingFile = fileURLToPath(import.meta.url);
 
 function basePassingTest(): LoadedTest {
   return {
@@ -133,5 +135,65 @@ describe('validateTest', () => {
     const group = test.reading[0].passage.groups[1];
     group.template = 'Fill {{2}} and {{9}}';
     expect(rulesOf(test)).toContain(6);
+  });
+
+  it('rule 5: flags a missing or empty listening transcript', () => {
+    const test = structuredClone(basePassingTest());
+    test.meta.skills = ['reading', 'listening'];
+    test.listening = [
+      {
+        part: {
+          part: 1,
+          audio: '/audio/part-1.opus',
+          durationSec: 1,
+          transcript: 'part-1.transcript.md',
+          groups: [
+            {
+              id: 'l-g1',
+              instructions: 'Choose the correct letter.',
+              interaction: 'single',
+              qtype: 'multiple-choice',
+              options: { A: 'first', B: 'second' },
+              questions: [{ id: 'lq1', number: 1, answers: ['A'], evidence: { quote: QUOTE } }],
+            },
+          ],
+        },
+        transcriptText: '   ',
+        audioFsPath: existingFile,
+      },
+    ];
+    expect(rulesOf(test)).toContain(5);
+  });
+
+  it('rule 1: flags a listed skill that has no content', () => {
+    const test = structuredClone(basePassingTest());
+    test.meta.skills = ['reading', 'writing'];
+    expect(rulesOf(test)).toContain(1);
+  });
+
+  it('rule 1: flags content for a skill that is not listed', () => {
+    const test = structuredClone(basePassingTest());
+    test.meta.skills = ['writing'];
+    expect(rulesOf(test)).toContain(1);
+  });
+
+  it('rule 1: flags a mock that does not list all four skills', () => {
+    const test = structuredClone(basePassingTest());
+    test.meta.kind = 'mock';
+    expect(rulesOf(test)).toContain(1);
+  });
+
+  it('rule 4: flags more than one answer without acceptAlternatives', () => {
+    const test = structuredClone(basePassingTest());
+    test.reading[0].passage.groups[0].questions[0].answers = ['A', 'B'];
+    expect(rulesOf(test)).toContain(4);
+  });
+
+  it('rule 4: allows multiple answers when acceptAlternatives is set', () => {
+    const test = structuredClone(basePassingTest());
+    const group = test.reading[0].passage.groups[0];
+    group.acceptAlternatives = true;
+    group.questions[0].answers = ['A', 'B'];
+    expect(rulesOf(test)).not.toContain(4);
   });
 });

@@ -86,6 +86,7 @@ groups: [ ...QuestionGroup ]
   image: /images/mock-01/map.svg    # optional (diagram/map/plan labelling)
   options: { A: "...", B: "..." }   # for single | multi | select | dragBank
   allowReuse: false                 # select/dragBank: may an option be used more than once
+  acceptAlternatives: false         # single/select/dragBank: allow >1 accepted answer (default false)
   wordLimit: { words: 2, numberAllowed: true }   # gap only
   questions:
     - id: L1-Q2
@@ -135,13 +136,13 @@ modelAnswers: [{ part: 2, band: 7, text: "..." }]
 ```
 
 ### Content validation rules (build fails on any violation)
-1. Zod schema valid; ids unique; `status` present.
-2. Listening: exactly 4 parts, 40 questions, numbers 1–40 contiguous. Reading: 3 passages, 40 questions, 1–40 contiguous.
+1. Zod schema valid; ids unique; `status` present. `meta.skills` must match the content present: every listed skill has content files, content for an unlisted skill is an error, and a `mock` must list all four skills.
+2. **Mocks only** — Listening: exactly 4 parts, 40 questions, numbers 1–40 contiguous; Reading: 3 passages, 40 questions, 1–40 contiguous. Practice sets are partial by design and only require question numbers to be unique within each skill.
 3. Every gap answer variant obeys its own `wordLimit` (after expanding optional words).
-4. `multi`: `answers.length === n === numbers.length`; options unique; select/dragBank/single answers exist in `options`.
-5. `evidence.quote` appears verbatim (case-insensitive, whitespace-normalised) in the passage/transcript.
+4. `multi`: `answers.length === n === numbers.length`; options unique; `single`/`select`/`dragBank` answers exist in `options` and list exactly one answer unless the group sets `acceptAlternatives: true`.
+5. `evidence.quote` appears verbatim (case-insensitive, whitespace-normalised) in the passage/transcript; a listening part's transcript must be present and non-empty.
 6. Reading passages 650–1000 words; audio files exist; template placeholders match question numbers.
-7. Auto-generated "perfect answer sheet" scores 40/40; every listed variant is accepted; every non-answer option is rejected.
+7. Auto-generated "perfect answer sheet" scores 40/40; every listed variant is accepted; every non-answer option is rejected. *(Implemented in M2.4, once the grading engine exists.)*
 
 ## 4. Grading rules (Listening & Reading) — identical to real IELTS
 - 1 mark per question, no negative marking, blank = 0.

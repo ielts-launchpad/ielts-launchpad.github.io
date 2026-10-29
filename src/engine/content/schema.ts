@@ -109,6 +109,12 @@ export const questionGroupSchema = z
     image: z.string().min(1).optional(),
     options: z.record(z.string().min(1)).optional(),
     allowReuse: z.boolean().optional(),
+    /**
+     * single/select/dragBank: allow more than one accepted answer per question
+     * (e.g. two equally valid option letters). Defaults to false, in which case
+     * each question must list exactly one answer (SPEC §3 rule 4).
+     */
+    acceptAlternatives: z.boolean().optional(),
     wordLimit: wordLimitSchema.optional(),
     questions: z.array(questionSchema).min(1),
   })
