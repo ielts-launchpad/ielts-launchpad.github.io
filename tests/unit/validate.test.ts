@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LoadedTest } from '../../src/engine/content/loader';
 import { validateTest } from '../../src/engine/content/validate';
@@ -6,6 +7,14 @@ import { validateTest } from '../../src/engine/content/validate';
 const QUOTE = 'the bees are busy';
 const passageText = `${QUOTE} ${'lorem '.repeat(700)}`.trim();
 const existingFile = fileURLToPath(import.meta.url);
+const sampleOpus = join(
+  process.cwd(),
+  'public',
+  'audio',
+  'academic',
+  'sample-01',
+  'part-1.opus',
+);
 
 function basePassingTest(): LoadedTest {
   return {
@@ -61,6 +70,51 @@ function basePassingTest(): LoadedTest {
 }
 
 const rulesOf = (test: LoadedTest): number[] => validateTest(test).map((p) => p.rule);
+
+interface ListeningOpts {
+  transcriptText: string;
+  quote: string;
+  durationSec?: number;
+  audioStart?: number;
+  audioFsPath?: string;
+}
+
+/** A listening-bearing test whose reading section is already well-formed. */
+function listeningTest(opts: ListeningOpts): LoadedTest {
+  const test = structuredClone(basePassingTest());
+  test.meta.skills = ['reading', 'listening'];
+  test.listening = [
+    {
+      part: {
+        part: 1,
+        audio: '/audio/part-1.opus',
+        durationSec: opts.durationSec ?? 30,
+        transcript: 'part-1.transcript.md',
+        groups: [
+          {
+            id: 'l-g1',
+            instructions: 'Choose the correct letter.',
+            interaction: 'single',
+            qtype: 'multiple-choice',
+            options: { A: 'first', B: 'second' },
+            questions: [
+              {
+                id: 'lq1',
+                number: 5,
+                answers: ['A'],
+                evidence: { quote: opts.quote, audioStart: opts.audioStart },
+              },
+            ],
+          },
+        ],
+      },
+      transcriptText: opts.transcriptText,
+      audioFsPath: opts.audioFsPath ?? existingFile,
+    },
+  ];
+  return test;
+}
+
 
 describe('validateTest', () => {
   it('reports no problems for a well-formed test', () => {
@@ -195,5 +249,90 @@ describe('validateTest', () => {
     group.acceptAlternatives = true;
     group.questions[0].answers = ['A', 'B'];
     expect(rulesOf(test)).not.toContain(4);
+  });
+
+  it('rule 5: matches a transcript quote that spans lines after stripping markup', () => {
+    const problems = validateTest(
+      listeningTest({
+        transcriptText:
+          '[00:00.0] NARRATOR: the quick brown\n[00:02.0] CLERK: fox jumps over the lazy dog',
+        quote: 'the quick brown fox jumps over',
+        durationSec: 10,
+      }),
+    );
+    expect(problems.some((p) => p.rule === 5)).toBe(false);
+  });
+
+  it('rule 5: still flags a quote that is genuinely absent from the transcript', () => {
+    const problems = validateTest(
+      listeningTest({
+        transcriptText: '[00:00.0] CLERK: welcome to the garden centre',
+        quote: 'this phrase is not present',
+        durationSec: 10,
+      }),
+    );
+    expect(problems.some((p) => p.rule === 5)).toBe(true);
+  });
+
+  it('rule 6: flags an audioStart that is not before the part duration', () => {
+    const problems = validateTest(
+      listeningTest({
+        transcriptText: '[00:00.0] CLERK: the bees are busy',
+        quote: 'the bees are busy',
+        durationSec: 5,
+        audioStart: 10,
+      }),
+    );
+    expect(problems.some((p) => p.rule === 6 && p.message.includes('audioStart'))).toBe(true);
+  });
+
+  it('rule 6: accepts an audioStart inside the part duration', () => {
+    const problems = validateTest(
+      listeningTest({
+        transcriptText: '[00:00.0] CLERK: the bees are busy',
+        quote: 'the bees are busy',
+        durationSec: 30,
+        audioStart: 2,
+      }),
+    );
+    expect(problems.some((p) => p.rule === 6 && p.message.includes('audioStart'))).toBe(false);
+  });
+
+  it('rule 6: flags a declared duration that does not match the real audio', () => {
+    const problems = validateTest(
+      listeningTest({
+        transcriptText: '[00:00.0] CLERK: the bees are busy',
+        quote: 'the bees are busy',
+        durationSec: 50, // the committed sample is ~24s
+        audioStart: 2,
+        audioFsPath: sampleOpus,
+      }),
+    );
+    expect(problems.some((p) => p.rule === 6 && p.message.includes('durationSec'))).toBe(true);
+  });
+
+  it('rule 6: accepts a declared duration matching the real audio within ±1s', () => {
+    const problems = validateTest(
+      listeningTest({
+        transcriptText: '[00:00.0] CLERK: the bees are busy',
+        quote: 'the bees are busy',
+        durationSec: 24,
+        audioStart: 2,
+        audioFsPath: sampleOpus,
+      }),
+    );
+    expect(problems.some((p) => p.rule === 6 && p.message.includes('durationSec'))).toBe(false);
+  });
+
+  it('rule 7: a well-formed test produces no perfect-answer-sheet problems', () => {
+    expect(rulesOf(basePassingTest())).not.toContain(7);
+  });
+
+  it('rule 7: flags content whose own answer cannot score (over its word limit)', () => {
+    const test = structuredClone(basePassingTest());
+    const group = test.reading[0].passage.groups[1];
+    group.wordLimit = { words: 1, numberAllowed: false };
+    group.questions[0].answers = ['busy bees']; // two words, exceeds its own limit
+    expect(rulesOf(test)).toContain(7);
   });
 });
