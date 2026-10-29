@@ -10,6 +10,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": [".astro/types.d.ts", "src", "tests", "playwright.config.ts", "vitest.config.ts"],
-  "exclude": ["dist", "node_modules", "tools", ".astro"]
+  "include": [".astro/types.d.ts", "src", "tests", "tools/validate", "playwright.config.ts", "vitest.config.ts"],
+  "exclude": ["dist", "node_modules", "tools/github", ".astro"]
 }

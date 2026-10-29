@@ -1,0 +1,272 @@
+passage: 1
+title: 'Urban beekeeping'
+file: passage-1.md
+groups:
+  - id: p1-g1-headings
+    instructions: 'Choose the correct heading for each paragraph from the list of headings below.'
+    interaction: select
+    qtype: matching-headings
+    allowReuse: false
+    options:
+      i: 'Lessons that reach beyond the classroom'
+      ii: 'A warning against overcrowding'
+      iii: 'An activity that has spread into towns'
+      iv: 'A richer menu for city bees'
+      v: 'Rules that protect neighbours'
+      vi: 'What a jar of city honey can reveal'
+      vii: 'The rising cost of equipment'
+      viii: 'A new threat from disease'
+    questions:
+      - id: p1-q1
+        number: 1
+        prompt: 'Paragraph A'
+        answers: ['iii']
+        evidence:
+          quote: 'Urban beekeeping has grown rapidly in cities around the world over the past two decades'
+          paragraph: A
+      - id: p1-q2
+        number: 2
+        prompt: 'Paragraph B'
+        answers: ['iv']
+        evidence:
+          quote: 'City bees often enjoy a more varied diet than their rural cousins'
+          paragraph: B
+      - id: p1-q3
+        number: 3
+        prompt: 'Paragraph C'
+        answers: ['v']
+        evidence:
+          quote: 'Many city councils now require beekeepers to register their hives'
+          paragraph: C
+      - id: p1-q4
+        number: 4
+        prompt: 'Paragraph D'
+        answers: ['vi']
+        evidence:
+          quote: 'Research suggests that urban honey can contain traces of the many ornamental plants'
+          paragraph: D
+      - id: p1-q5
+        number: 5
+        prompt: 'Paragraph E'
+        answers: ['i']
+        evidence:
+          quote: 'Schools have begun to keep hives on their roofs'
+          paragraph: E
+      - id: p1-q6
+        number: 6
+        prompt: 'Paragraph F'
+        answers: ['ii']
+        evidence:
+          quote: 'Experts warn that adding too many hives to a small area'
+          paragraph: F
+
+  - id: p1-g2-mc
+    instructions: 'Choose the correct letter, A, B, C or D.'
+    interaction: single
+    qtype: multiple-choice
+    options:
+      A: 'parks and gardens flower at different times'
+      B: 'cities are always warmer than the countryside'
+      C: 'farmers plant fewer crops than before'
+      D: 'bees prefer a single type of flower'
+    questions:
+      - id: p1-q7
+        number: 7
+        prompt: 'The writer says city bees may have a better diet because'
+        answers: ['A']
+        evidence:
+          quote: 'parks and gardens flower at different times'
+          paragraph: B
+        explanation: 'Paragraph B explains that staggered flowering gives a longer nectar season.'
+
+  - id: p1-g3-tfng
+    instructions: 'Do the following statements agree with the information in the passage? Write TRUE, FALSE or NOT GIVEN.'
+    interaction: single
+    qtype: true-false-not-given
+    options:
+      'TRUE': 'True'
+      'FALSE': 'False'
+      'NOT GIVEN': 'Not Given'
+    questions:
+      - id: p1-q8
+        number: 8
+        prompt: 'Some city councils ask beekeepers to register their hives.'
+        answers: ['TRUE']
+        evidence:
+          quote: 'require beekeepers to register their hives'
+          paragraph: C
+      - id: p1-q9
+        number: 9
+        prompt: 'Urban honey never contains any trace of garden plants.'
+        answers: ['FALSE']
+        evidence:
+          quote: 'urban honey can contain traces of the many ornamental plants'
+          paragraph: D
+      - id: p1-q10
+        number: 10
+        prompt: 'Most city beekeepers earn their living from selling honey.'
+        answers: ['NOT GIVEN']
+        evidence:
+          quote: 'Research suggests that urban honey can contain traces'
+          paragraph: D
+
+  - id: p1-g4-choosen
+    instructions: 'Choose TWO letters, A–E.'
+    interaction: multi
+    qtype: choose-n
+    options:
+      A: 'a more varied diet for bees'
+      B: 'cheaper beekeeping equipment'
+      C: 'guaranteed profit from honey'
+      D: 'opportunities to teach children'
+      E: 'the end of all pesticide use'
+    questions:
+      - id: p1-q11-12
+        numbers: [11, 12]
+        n: 2
+        answers: ['A', 'D']
+        evidence:
+          quote: 'a more varied diet than their rural cousins'
+          paragraph: B
+        explanation:
+          '11': 'Paragraph B describes a more varied diet.'
+          '12': 'Paragraph E describes teaching children about ecology.'
+
+  - id: p1-g5-matchinfo
+    instructions: 'Which paragraph contains the following information? You may use any letter more than once.'
+    interaction: select
+    qtype: matching-information
+    allowReuse: true
+    options:
+      A: 'Paragraph A'
+      B: 'Paragraph B'
+      C: 'Paragraph C'
+      D: 'Paragraph D'
+      E: 'Paragraph E'
+      F: 'Paragraph F'
+    questions:
+      - id: p1-q13
+        number: 13
+        prompt: 'a reference to keeping hives away from where people walk'
+        answers: ['C']
+        evidence:
+          quote: 'a set distance from public paths'
+          paragraph: C
+      - id: p1-q14
+        number: 14
+        prompt: 'a mention of children learning about the environment'
+        answers: ['E']
+        evidence:
+          quote: 'teaching children about ecology'
+          paragraph: E
+      - id: p1-q15
+        number: 15
+        prompt: 'a warning about competition for food'
+        answers: ['F']
+        evidence:
+          quote: 'leave wild pollinators short of food'
+          paragraph: F
+
+  - id: p1-g6-sentence
+    instructions: 'Complete the sentences below. Choose NO MORE THAN TWO WORDS from the passage for each answer.'
+    interaction: gap
+    qtype: sentence-completion
+    wordLimit:
+      words: 2
+      numberAllowed: true
+    questions:
+      - id: p1-q16
+        number: 16
+        prompt: 'Urban beekeeping has grown over the past two ______.'
+        answers: ['decades']
+        evidence:
+          quote: 'over the past two decades'
+          paragraph: A
+      - id: p1-q17
+        number: 17
+        prompt: 'Many councils ask keepers to ______ their hives.'
+        answers: ['register']
+        evidence:
+          quote: 'require beekeepers to register their hives'
+          paragraph: C
+
+  - id: p1-g7-note
+    instructions: 'Complete the notes below. Choose NO MORE THAN TWO WORDS from the passage for each answer.'
+    interaction: gap
+    qtype: note-completion
+    wordLimit:
+      words: 2
+    template: |
+      Responsible city beekeeping
+      - Keep hives a set {{18}} from public paths
+      - Some schools keep hives on their {{19}}
+    questions:
+      - id: p1-q18
+        number: 18
+        answers: ['distance']
+        evidence:
+          quote: 'a set distance from public paths'
+          paragraph: C
+      - id: p1-q19
+        number: 19
+        answers: ['roofs']
+        evidence:
+          quote: 'keep hives on their roofs'
+          paragraph: E
+
+  - id: p1-g8-shortanswer
+    instructions: 'Answer the questions below. Choose NO MORE THAN THREE WORDS from the passage for each answer.'
+    interaction: gap
+    qtype: short-answer
+    wordLimit:
+      words: 3
+    questions:
+      - id: p1-q20
+        number: 20
+        prompt: 'What can urban honey contain traces of?'
+        answers: ['ornamental plants']
+        evidence:
+          quote: 'traces of the many ornamental plants'
+          paragraph: D
+      - id: p1-q21
+        number: 21
+        prompt: 'Who can be left short of food by too many hives?'
+        answers: ['wild pollinators']
+        evidence:
+          quote: 'leave wild pollinators short of food'
+          paragraph: F
+
+  - id: p1-g9-summary
+    instructions: 'Complete the summary using the list of words, A–F, below.'
+    interaction: dragBank
+    qtype: summary-completion
+    allowReuse: false
+    options:
+      A: 'varied'
+      B: 'register'
+      C: 'ecology'
+      D: 'overcrowding'
+      E: 'rural'
+      F: 'gardens'
+    template: |
+      City bees may eat a more {{22}} diet than {{23}} bees, yet experts
+      caution that {{24}} can leave wild insects without enough food.
+    questions:
+      - id: p1-q22
+        number: 22
+        answers: ['A']
+        evidence:
+          quote: 'a more varied diet'
+          paragraph: B
+      - id: p1-q23
+        number: 23
+        answers: ['E']
+        evidence:
+          quote: 'than their rural cousins'
+          paragraph: B
+      - id: p1-q24
+        number: 24
+        answers: ['D']
+        evidence:
+          quote: 'adding too many hives to a small area'
+          paragraph: F

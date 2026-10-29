@@ -1,0 +1,9 @@
+id: draft-sample
+exam: ielts
+variant: academic
+kind: practice
+title: 'Draft sample'
+status: draft
+skills: [reading]
+license: CC-BY-SA-4.0
+version: 1
