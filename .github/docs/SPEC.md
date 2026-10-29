@@ -238,3 +238,8 @@ Each milestone is done only when lint, typecheck, unit tests, e2e tests and axe 
 - Real mock content is NOT part of the code work; only the draft sample test is.
 - Package manager: npm. Node: current LTS, pinned in `.nvmrc`.
 - When in doubt, choose the simpler option that satisfies the spec and write the assumption into the PR description.
+- Band tables: implement as in §4; human verification against ielts.org is a manual release-checklist item.
+- Turnstile/Cloudflare/API keys/model IDs: env/config placeholders; Turnstile test keys in dev/tests; account setup and deploy are manual tasks for the maintainer.
+- AI anchors: `worker/src/anchors/` may be empty; the code must work without anchors. Real anchors are post-launch content.
+- General Training: engine and schema support `variant: general` and the GT Reading band table; no GT pages or content until after M8.
+- Issue labels: `code` (Copilot), `manual` and `content` (maintainer), `later`.
