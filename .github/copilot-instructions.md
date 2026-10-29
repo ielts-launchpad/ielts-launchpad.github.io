@@ -1,5 +1,5 @@
 # Copilot instructions — IELTS Launchpad
-- `docs/SPEC.md` is the single source of truth. Read it before every task. If something is ambiguous or conflicts, STOP and ask; do not invent requirements.
+- `.github/docs/SPEC.md` is the single source of truth. Read it before every task. If something is ambiguous or conflicts, STOP and ask; do not invent requirements.
 - Work only on the phase I give you. Do not refactor unrelated code.
 - TypeScript strict, no `any`, no `@ts-ignore`. Small, pure, testable functions in `src/engine` and `src/exams`.
 - All UI text goes in `src/i18n/en.ts`. Brand values only from `src/config/brand.ts`.

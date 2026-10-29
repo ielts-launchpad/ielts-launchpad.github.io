@@ -1,9 +1,11 @@
 import { existsSync } from 'node:fs';
 import {
   isMultiQuestion,
+  SKILLS,
   type Interaction,
   type Question,
   type QuestionGroup,
+  type Skill,
 } from './schema';
 import type { LoadedTest } from './loader';
 import { countWords, expandOptionalWords, foldForMatch } from '../text/words';
@@ -24,6 +26,9 @@ export interface Problem {
 }
 
 const OPTION_INTERACTIONS: Interaction[] = ['single', 'multi', 'select', 'dragBank'];
+
+/** Interactions whose questions take a single option letter as the answer. */
+const SINGLE_ANSWER_INTERACTIONS: Interaction[] = ['single', 'select', 'dragBank'];
 
 function questionNumbers(question: Question): number[] {
   return isMultiQuestion(question) ? question.numbers : [question.number];
@@ -50,6 +55,11 @@ export function validateTest(test: LoadedTest): Problem[] {
     if (!existsSync(audioFsPath)) {
       problems.push({ file, rule: 6, message: `audio file not found: ${part.audio}` });
     }
+    // Rule 5: a listening transcript must be present and non-empty so evidence
+    // quotes can be checked against it.
+    if (transcriptText.trim() === '') {
+      problems.push({ file, rule: 5, message: `transcript ${part.transcript} is missing or empty` });
+    }
   }
   for (const { passage, markdownText } of test.reading) {
     const file = `${id}/reading/passage-${passage.passage}`;
@@ -69,6 +79,9 @@ export function validateTest(test: LoadedTest): Problem[] {
 
   // Rule 1: ids unique across the whole test (groups + questions).
   checkUniqueIds(groups, problems);
+
+  // Rule 1: meta.skills is consistent with the content that exists.
+  checkSkills(test, problems);
 
   // Rule 2: structure (mocks only) / number uniqueness (practice).
   checkStructure(test, problems);
@@ -98,6 +111,36 @@ function checkUniqueIds(groups: GroupContext[], problems: Problem[]): void {
   for (const { group, file } of groups) {
     report(group.id, file);
     for (const question of group.questions) report(question.id, file);
+  }
+}
+
+/** Rule 1: `meta.skills` must match the content that is actually present. */
+function checkSkills(test: LoadedTest, problems: Problem[]): void {
+  const id = test.meta.id;
+  const file = `${id}/meta.yaml`;
+  const listed = new Set(test.meta.skills);
+  const present: Record<Skill, boolean> = {
+    listening: test.listening.length > 0,
+    reading: test.reading.length > 0,
+    writing: test.writing.length > 0,
+    speaking: test.speaking !== null,
+  };
+
+  for (const skill of SKILLS) {
+    if (listed.has(skill) && !present[skill]) {
+      problems.push({ file, rule: 1, message: `meta.skills lists "${skill}" but no ${skill} content exists` });
+    }
+    if (!listed.has(skill) && present[skill]) {
+      problems.push({ file, rule: 1, message: `${skill} content exists but "${skill}" is not in meta.skills` });
+    }
+  }
+
+  if (test.meta.kind === 'mock') {
+    for (const skill of SKILLS) {
+      if (!listed.has(skill)) {
+        problems.push({ file, rule: 1, message: `a mock must list all four skills; missing "${skill}"` });
+      }
+    }
   }
 }
 
@@ -185,6 +228,16 @@ function checkGroup(ctx: GroupContext, problems: Problem[]): void {
             message: `question ${question.id}: n, numbers and answers must have equal length`,
           });
         }
+      } else if (
+        SINGLE_ANSWER_INTERACTIONS.includes(group.interaction) &&
+        !group.acceptAlternatives &&
+        question.answers.length !== 1
+      ) {
+        problems.push({
+          file,
+          rule: 4,
+          message: `question ${question.id}: expected exactly one answer (set acceptAlternatives: true to allow more)`,
+        });
       }
       for (const answer of question.answers) {
         if (!keys.has(answer)) {
@@ -243,8 +296,9 @@ function checkGroup(ctx: GroupContext, problems: Problem[]): void {
     }
   }
 
-  // Rule 5: evidence quotes appear verbatim in the source text.
-  if (ctx.sourceText) {
+  // Rule 5: evidence quotes appear verbatim in the source text. A missing or
+  // empty listening transcript is reported separately (see validateTest).
+  if (ctx.sourceText && ctx.sourceText.trim() !== '') {
     const haystack = foldForMatch(ctx.sourceText);
     for (const question of group.questions) {
       if (question.evidence && !haystack.includes(foldForMatch(question.evidence.quote))) {

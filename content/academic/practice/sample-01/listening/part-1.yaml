@@ -1,0 +1,54 @@
+part: 1
+audio: /audio/academic/sample-01/part-1.opus
+durationSec: 24
+transcript: part-1.transcript.md
+groups:
+  - id: L1-g1-form
+    instructions: 'Complete the form below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.'
+    interaction: gap
+    qtype: form-completion
+    wordLimit:
+      words: 2
+      numberAllowed: true
+    template: |
+      Garden workshop booking
+      - Meeting point: the {{1}}
+      - Leave bikes by the {{2}}
+    questions:
+      - id: L1-q1
+        number: 1
+        answers: ['main entrance']
+        evidence:
+          quote: 'The workshop starts at the main entrance'
+          audioStart: 8.2
+      - id: L1-q2
+        number: 2
+        answers: ['north gate']
+        evidence:
+          quote: 'leave them by the north gate'
+          audioStart: 14.0
+
+  - id: L1-g2-match
+    instructions: 'What is each item needed for? Choose the correct letter, A–C.'
+    interaction: select
+    qtype: matching-features
+    allowReuse: false
+    options:
+      A: 'for protecting the hands'
+      B: 'for digging holes'
+      C: 'for carrying water'
+    questions:
+      - id: L1-q3
+        number: 3
+        prompt: 'gloves'
+        answers: ['A']
+        evidence:
+          quote: 'a pair of gloves'
+          audioStart: 18.0
+      - id: L1-q4
+        number: 4
+        prompt: 'a trowel'
+        answers: ['B']
+        evidence:
+          quote: 'a small trowel'
+          audioStart: 18.0
