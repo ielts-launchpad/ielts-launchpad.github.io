@@ -1,0 +1,11 @@
+# Copilot instructions — IELTS Launchpad
+- `docs/SPEC.md` is the single source of truth. Read it before every task. If something is ambiguous or conflicts, STOP and ask; do not invent requirements.
+- Work only on the phase I give you. Do not refactor unrelated code.
+- TypeScript strict, no `any`, no `@ts-ignore`. Small, pure, testable functions in `src/engine` and `src/exams`.
+- All UI text goes in `src/i18n/en.ts`. Brand values only from `src/config/brand.ts`.
+- Accessibility is mandatory: semantic HTML, labels, keyboard support, focus management, ARIA only when needed.
+- Never add analytics, trackers, ads, external fonts/CDNs, or third-party scripts (Turnstile is the only exception).
+- Never commit secrets. Use `.env.example` and Wrangler secrets.
+- Never copy official IELTS/Cambridge/British Council/IDP text, tests or band descriptors. Paraphrase in our own words.
+- Every feature ships with tests (Vitest for logic, Playwright for UI). Run `npm run lint && npm run typecheck && npm test && npm run test:e2e` and fix failures before saying a task is done.
+- At the end of each task: list files changed, how to verify manually, and any action I must do by hand.
