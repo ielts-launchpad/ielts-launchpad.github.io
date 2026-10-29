@@ -1,0 +1,78 @@
+---
+import { brand } from '@/config/brand';
+import { en } from '@/i18n/en';
+
+const resourceLinks = [
+  { href: '/official-resources', label: en.pages.officialResources.heading },
+  { href: '/how-scoring-works', label: en.pages.howScoringWorks.heading },
+  { href: '/about', label: en.pages.about.heading },
+  { href: '/support', label: en.pages.support.heading },
+];
+
+const legalLinks = [
+  { href: '/privacy', label: en.pages.privacy.heading },
+  { href: '/terms', label: en.pages.terms.heading },
+  { href: '/licences', label: en.pages.licences.heading },
+];
+---
+
+<footer class="mt-auto border-t border-slate-200 bg-slate-50">
+  <div class="mx-auto w-full max-w-3xl px-4 py-8 text-sm text-slate-600">
+    <nav aria-label={en.common.footerNavLabel} class="grid grid-cols-2 gap-6 sm:grid-cols-3">
+      <div>
+        <h2 class="mb-2 font-semibold text-slate-900">{en.footer.resourcesHeading}</h2>
+        <ul class="space-y-1">
+          {
+            resourceLinks.map((link) => (
+              <li>
+                <a class="underline-offset-4 hover:underline" href={link.href}>
+                  {link.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <div>
+        <h2 class="mb-2 font-semibold text-slate-900">{en.footer.legalHeading}</h2>
+        <ul class="space-y-1">
+          {
+            legalLinks.map((link) => (
+              <li>
+                <a class="underline-offset-4 hover:underline" href={link.href}>
+                  {link.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <div>
+        <h2 class="mb-2 font-semibold text-slate-900">{en.footer.supportHeading}</h2>
+        <ul class="space-y-1">
+          <li>
+            <a
+              class="underline-offset-4 hover:underline"
+              href={brand.donate.koFi}
+              rel="noopener noreferrer"
+              target="_blank">{en.footer.koFi}</a
+            >
+          </li>
+          <li>
+            <a
+              class="underline-offset-4 hover:underline"
+              href={brand.donate.githubSponsors}
+              rel="noopener noreferrer"
+              target="_blank">{en.footer.githubSponsors}</a
+            >
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <hr class="my-6 border-slate-200" />
+
+    <p class="mb-2">{brand.disclaimer}</p>
+    <p class="text-slate-500">{en.footer.licenceNotice}</p>
+  </div>
+</footer>

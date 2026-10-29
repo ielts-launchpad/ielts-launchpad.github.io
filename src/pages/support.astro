@@ -1,0 +1,27 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { brand } from '@/config/brand';
+import { en } from '@/i18n/en';
+
+const page = en.pages.support;
+---
+
+<BaseLayout title={page.title} description={page.description}>
+  <h1 class="text-2xl font-bold">{page.heading}</h1>
+  <p class="mt-4 text-slate-700">{page.intro}</p>
+  <ul class="mt-4 space-y-2">
+    <li>
+      <a class="underline" href={brand.donate.koFi} rel="noopener noreferrer" target="_blank"
+        >{en.footer.koFi}</a
+      >
+    </li>
+    <li>
+      <a
+        class="underline"
+        href={brand.donate.githubSponsors}
+        rel="noopener noreferrer"
+        target="_blank">{en.footer.githubSponsors}</a
+      >
+    </li>
+  </ul>
+</BaseLayout>

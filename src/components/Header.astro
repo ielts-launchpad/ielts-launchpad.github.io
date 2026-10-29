@@ -1,0 +1,39 @@
+---
+import { brand } from '@/config/brand';
+import { en } from '@/i18n/en';
+
+const navItems = [
+  { href: '/', label: en.nav.home },
+  { href: '/tests', label: en.nav.tests },
+  { href: '/dashboard', label: en.nav.dashboard },
+  { href: '/planner', label: en.nav.planner },
+  { href: '/settings', label: en.nav.settings },
+];
+
+const current = Astro.url.pathname;
+const isActive = (href: string): boolean =>
+  href === '/' ? current === '/' : current.startsWith(href);
+---
+
+<header class="border-b border-slate-200">
+  <div class="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+    <a href="/" class="text-lg font-bold text-slate-900">{brand.name}</a>
+    <nav aria-label={en.common.primaryNavLabel}>
+      <ul class="flex flex-wrap gap-4">
+        {
+          navItems.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+                class="text-sm text-slate-700 underline-offset-4 hover:underline aria-[current=page]:font-semibold aria-[current=page]:text-slate-900"
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</header>
