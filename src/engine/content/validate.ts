@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   isMultiQuestion,
   SKILLS,
@@ -8,7 +8,14 @@ import {
   type Skill,
 } from './schema';
 import type { LoadedTest } from './loader';
-import { countWords, expandOptionalWords, foldForMatch } from '../text/words';
+import {
+  countWords,
+  expandOptionalWords,
+  foldForMatch,
+  stripTranscriptMarkup,
+} from '../text/words';
+import { oggOpusDurationSec } from '../audio/ogg';
+import { gradeQuestion, gradeTest, type UserResponse } from '../grading/grade';
 
 /**
  * Content validation (SPEC §3 rules 1–6). Pure over a {@link LoadedTest} so it
@@ -38,6 +45,7 @@ interface GroupContext {
   group: QuestionGroup;
   file: string;
   sourceText: string | null;
+  isTranscript: boolean;
 }
 
 /** Validate a single loaded test, returning every problem found. */
@@ -49,7 +57,7 @@ export function validateTest(test: LoadedTest): Problem[] {
   for (const { part, transcriptText, audioFsPath } of test.listening) {
     const file = `${id}/listening/part-${part.part}`;
     for (const group of part.groups) {
-      groups.push({ group, file, sourceText: transcriptText });
+      groups.push({ group, file, sourceText: transcriptText, isTranscript: true });
     }
     // Rule 6: audio files exist.
     if (!existsSync(audioFsPath)) {
@@ -60,11 +68,26 @@ export function validateTest(test: LoadedTest): Problem[] {
     if (transcriptText.trim() === '') {
       problems.push({ file, rule: 5, message: `transcript ${part.transcript} is missing or empty` });
     }
+    // Rule 6: every audioStart must fall inside the part's declared duration.
+    for (const group of part.groups) {
+      for (const question of group.questions) {
+        const start = question.evidence?.audioStart;
+        if (start !== undefined && start >= part.durationSec) {
+          problems.push({
+            file,
+            rule: 6,
+            message: `question ${question.id}: audioStart ${start}s is not before durationSec ${part.durationSec}s`,
+          });
+        }
+      }
+    }
+    // Rule 6: the real audio duration must match durationSec within ±1 s.
+    checkAudioDuration(file, part.durationSec, audioFsPath, problems);
   }
   for (const { passage, markdownText } of test.reading) {
     const file = `${id}/reading/passage-${passage.passage}`;
     for (const group of passage.groups) {
-      groups.push({ group, file, sourceText: markdownText });
+      groups.push({ group, file, sourceText: markdownText, isTranscript: false });
     }
     // Rule 6: reading passages are 650–1000 words.
     const words = countPassageWords(markdownText);
@@ -90,7 +113,35 @@ export function validateTest(test: LoadedTest): Problem[] {
     checkGroup(ctx, problems);
   }
 
+  // Rule 7: the auto-generated perfect answer sheet scores full marks, every
+  // listed variant is accepted and every non-answer option is rejected.
+  checkPerfectAnswerSheet(test, problems);
+
   return problems;
+}
+
+/** Rule 6: compare the audio file's real duration with its declared value. */
+function checkAudioDuration(
+  file: string,
+  durationSec: number,
+  audioFsPath: string,
+  problems: Problem[],
+): void {
+  if (!existsSync(audioFsPath)) return; // missing-file is reported separately.
+  let actual: number | null;
+  try {
+    actual = oggOpusDurationSec(readFileSync(audioFsPath));
+  } catch {
+    actual = null;
+  }
+  if (actual === null) return; // unreadable/non-Ogg: not a duration problem here.
+  if (Math.abs(actual - durationSec) > 1) {
+    problems.push({
+      file,
+      rule: 6,
+      message: `audio is ${actual.toFixed(1)}s but durationSec is ${durationSec}s (must match within ±1s)`,
+    });
+  }
 }
 
 function countPassageWords(markdown: string): number {
@@ -296,10 +347,12 @@ function checkGroup(ctx: GroupContext, problems: Problem[]): void {
     }
   }
 
-  // Rule 5: evidence quotes appear verbatim in the source text. A missing or
-  // empty listening transcript is reported separately (see validateTest).
+  // Rule 5: evidence quotes appear verbatim in the source text. For listening
+  // transcripts, timestamps and speaker labels are stripped first so a quote may
+  // span several lines. A missing/empty transcript is reported in validateTest.
   if (ctx.sourceText && ctx.sourceText.trim() !== '') {
-    const haystack = foldForMatch(ctx.sourceText);
+    const cleaned = ctx.isTranscript ? stripTranscriptMarkup(ctx.sourceText) : ctx.sourceText;
+    const haystack = foldForMatch(cleaned);
     for (const question of group.questions) {
       if (question.evidence && !haystack.includes(foldForMatch(question.evidence.quote))) {
         problems.push({
@@ -310,4 +363,90 @@ function checkGroup(ctx: GroupContext, problems: Problem[]): void {
       }
     }
   }
+}
+
+/**
+ * Rule 7: the auto-generated perfect answer sheet scores full marks, every
+ * listed answer variant is accepted, and every non-answer option is rejected.
+ * Exercises the grading engine (SPEC §4) against the content itself.
+ */
+function checkPerfectAnswerSheet(test: LoadedTest, problems: Problem[]): void {
+  const id = test.meta.id;
+
+  const skillGroups: { skill: Skill; file: string; group: QuestionGroup }[] = [
+    ...test.listening.flatMap(({ part }) =>
+      part.groups.map((group) => ({
+        skill: 'listening' as const,
+        file: `${id}/listening/part-${part.part}`,
+        group,
+      })),
+    ),
+    ...test.reading.flatMap(({ passage }) =>
+      passage.groups.map((group) => ({
+        skill: 'reading' as const,
+        file: `${id}/reading/passage-${passage.passage}`,
+        group,
+      })),
+    ),
+  ];
+
+  const perfect: Record<string, UserResponse> = {};
+
+  for (const { file, group } of skillGroups) {
+    for (const question of group.questions) {
+      perfect[question.id] = perfectResponse(group, question);
+
+      // Every listed answer variant must be accepted on its own.
+      for (const variant of acceptedResponses(group, question)) {
+        if (!gradeQuestion(group, question, variant).correct) {
+          problems.push({
+            file,
+            rule: 7,
+            message: `question ${question.id}: listed answer ${JSON.stringify(variant)} is not accepted`,
+          });
+        }
+      }
+
+      // Every option that is not an answer must be rejected.
+      if (group.options && !isMultiQuestion(question)) {
+        const answerKeys = new Set(question.answers.map((a) => a.toUpperCase()));
+        for (const key of Object.keys(group.options)) {
+          if (!answerKeys.has(key.toUpperCase()) && gradeQuestion(group, question, key).correct) {
+            problems.push({
+              file,
+              rule: 7,
+              message: `question ${question.id}: non-answer option "${key}" was accepted`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  const result = gradeTest(test, perfect);
+  for (const score of result.skills) {
+    if (score.raw !== score.max) {
+      problems.push({
+        file: `${id}/${score.skill}`,
+        rule: 7,
+        message: `perfect answer sheet scores ${score.raw}/${score.max}; expected a full score`,
+      });
+    }
+  }
+}
+
+/** The response that should earn full marks for a question. */
+function perfectResponse(group: QuestionGroup, question: Question): UserResponse {
+  if (isMultiQuestion(question)) return [...question.answers];
+  if (group.interaction === 'gap') return expandOptionalWords(question.answers[0])[0];
+  return question.answers[0];
+}
+
+/** Every individual response that must be accepted for a question. */
+function acceptedResponses(group: QuestionGroup, question: Question): UserResponse[] {
+  if (isMultiQuestion(question)) return [[...question.answers]];
+  if (group.interaction === 'gap') {
+    return question.answers.flatMap((answer) => expandOptionalWords(answer));
+  }
+  return question.answers;
 }

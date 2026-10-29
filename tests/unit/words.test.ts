@@ -4,6 +4,7 @@ import {
   expandOptionalWords,
   foldForMatch,
   normaliseWhitespace,
+  stripTranscriptMarkup,
 } from '../../src/engine/text/words';
 
 describe('normaliseWhitespace', () => {
@@ -52,5 +53,22 @@ describe('countWords', () => {
 
   it('counts the numeric token when numberAllowed is not set', () => {
     expect(countWords('20 euros')).toBe(2);
+  });
+});
+
+describe('stripTranscriptMarkup', () => {
+  it('removes [mm:ss.s] timestamps and leading speaker labels', () => {
+    const input = '[00:08.2] CLERK: Thank you.\n[00:12.4] VISITOR: Where next?';
+    expect(foldForMatch(stripTranscriptMarkup(input))).toBe('thank you. where next?');
+  });
+
+  it('lets a quote span several lines once markup is stripped', () => {
+    const input = '[00:00.0] NARRATOR: the quick brown\n[00:02.0] CLERK: fox jumps over';
+    expect(foldForMatch(stripTranscriptMarkup(input))).toContain('the quick brown fox jumps over');
+  });
+
+  it('does not strip a mid-line colon that is not a speaker label', () => {
+    const input = '[00:01.0] NARRATOR: the ratio was 3:1 overall';
+    expect(foldForMatch(stripTranscriptMarkup(input))).toBe('the ratio was 3:1 overall');
   });
 });
