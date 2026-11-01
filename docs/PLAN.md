@@ -548,7 +548,9 @@ Store the user's own API key outside the exported tables (or exclude it explicit
 
 **Acceptance criteria:** `docs/RELEASE-CHECKLIST.md` including the manual item "Verify band tables against ielts.org" (assigned maintainer), full a11y/axe audit, draft-exclusion verification, CSP check.
 
-**Tests:** CI — checklist present; full axe sweep green; prod build excludes drafts.
+- [ ] Import failure caused by damaged stored records shows a specific message: 'Some saved data is damaged. Export a backup, delete all data, then import it.' Add an e2e test.
+
+**Tests:** CI — checklist present; full axe sweep green; prod build excludes drafts. e2e — seed damaged stored records, attempt import, verify the specific recovery message and that no data was changed.
 
 ### M8.M Pre-release verification
 <!-- meta: id=M8.M; label=manual; milestone=M8; depends=M8.1,M8.2,M8.3,M8.4,M8.5,M8.6,M8.7,M7.C1,M7.C2,M7.C3; assignee=HabibApez -->
@@ -564,6 +566,7 @@ Store the user's own API key outside the exported tables (or exclude it explicit
 - [ ] Take every published mock end-to-end in exam mode (desktop + mobile)
 - [ ] Test AI Writing/Speaking evaluation on the deployed Worker, including the daily-limit fallback
 - [ ] Re-check Astro experimental CSP after upgrades
+- [ ] Import failure caused by damaged stored records shows a specific message: 'Some saved data is damaged. Export a backup, delete all data, then import it.' Add an e2e test.
 
 **Tests:** Manual — every checklist item verified and ticked; blocks release tag until complete.
 
