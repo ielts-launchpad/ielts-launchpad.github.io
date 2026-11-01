@@ -19,9 +19,9 @@ const t = en.runner.dragBank;
 
 /**
  * `dragBank`: a word bank whose options are placed into `{{n}}` gaps in the
- * template. Operable three ways for accessibility (SPEC §5, §10): pointer/touch
- * drag (dnd-kit), keyboard drag (dnd-kit KeyboardSensor), and click/tap to
- * select a bank option then activate a gap.
+ * template. Supports pointer/touch drag (dnd-kit Mouse/Touch sensors) and
+ * click/tap to select an option then activate a gap. Keyboard users use the
+ * same select-then-place path with native buttons and Enter/Space.
  */
 export function DragBank({ group, controller }: GroupProps): React.JSX.Element {
   const options = Object.entries(group.options ?? {});

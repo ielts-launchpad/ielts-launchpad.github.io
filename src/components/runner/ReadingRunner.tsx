@@ -13,11 +13,12 @@ const t = en.runner;
 type MobileTab = 'passage' | 'questions';
 
 function resolveMode(kind: ReadingRunnerData['kind']): RunnerMode {
+  if (kind === 'mock') return 'exam';
   if (typeof window !== 'undefined') {
     const param = new URLSearchParams(window.location.search).get('mode');
     if (param === 'exam' || param === 'practice') return param;
   }
-  return kind === 'mock' ? 'exam' : 'practice';
+  return 'practice';
 }
 
 interface ReadingRunnerProps {
@@ -50,7 +51,7 @@ export function ReadingRunner({ data }: ReadingRunnerProps): React.JSX.Element {
   };
 
   return (
-    <div className="mx-auto max-w-6xl p-4">
+    <div className="mx-auto max-w-6xl p-4" data-testid="reading-runner" data-saved={runner.saved}>
       {data.isDraft && (
         <p className="mb-3 rounded bg-amber-100 px-3 py-2 text-sm text-amber-900" role="note">
           {t.reading.draftNotice}
@@ -58,6 +59,9 @@ export function ReadingRunner({ data }: ReadingRunnerProps): React.JSX.Element {
       )}
 
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p role="status" aria-live="polite" className="text-sm text-slate-700" data-testid="save-status">
+          {runner.saveError ? t.toolbar.saveError : runner.saved ? t.toolbar.saved : t.toolbar.saving}
+        </p>
         <div className="flex items-center gap-3">
           <span
             className="rounded bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700"
@@ -125,6 +129,7 @@ export function ReadingRunner({ data }: ReadingRunnerProps): React.JSX.Element {
             highlights={runner.highlights}
             onAddHighlight={runner.addHighlight}
             onRemoveHighlight={runner.removeHighlight}
+            onUpdateNote={runner.updateNote}
           />
         </section>
 

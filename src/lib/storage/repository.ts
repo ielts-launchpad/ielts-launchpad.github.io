@@ -44,9 +44,7 @@ export class RunnerRepository {
   }
 
   async updateAttempt(id: string, patch: Partial<AttemptRecord>): Promise<void> {
-    const existing = await this.db.attempts.get(id);
-    if (!existing) return;
-    await this.db.attempts.put({ ...existing, ...patch, id, updatedAt: Date.now() });
+    await this.db.attempts.update(id, { ...patch, id, updatedAt: Date.now() });
   }
 
   // --- answers -------------------------------------------------------------
@@ -62,15 +60,17 @@ export class RunnerRepository {
     questionId: string,
     response: UserResponse,
   ): Promise<AnswerMap> {
-    const record: AnswerRecord = (await this.db.answers.get(attemptId)) ?? {
-      attemptId,
-      answers: {},
-      updatedAt: Date.now(),
-    };
-    const answers: AnswerMap = { ...record.answers, [questionId]: response };
-    await this.db.answers.put({ attemptId, answers, updatedAt: Date.now() });
-    await this.touchAttempt(attemptId);
-    return answers;
+    return this.db.transaction('rw', this.db.answers, this.db.attempts, async () => {
+      const record: AnswerRecord = (await this.db.answers.get(attemptId)) ?? {
+        attemptId,
+        answers: {},
+        updatedAt: Date.now(),
+      };
+      const answers: AnswerMap = { ...record.answers, [questionId]: response };
+      await this.db.answers.put({ attemptId, answers, updatedAt: Date.now() });
+      await this.touchAttempt(attemptId);
+      return answers;
+    });
   }
 
   // --- results -------------------------------------------------------------
@@ -91,9 +91,7 @@ export class RunnerRepository {
   }
 
   async updateHighlight(id: string, patch: Partial<HighlightRecord>): Promise<void> {
-    const existing = await this.db.highlights.get(id);
-    if (!existing) return;
-    await this.db.highlights.put({ ...existing, ...patch, id });
+    await this.db.highlights.update(id, { ...patch, id });
   }
 
   async removeHighlight(id: string): Promise<void> {
@@ -119,7 +117,6 @@ export class RunnerRepository {
   // --- internal ------------------------------------------------------------
 
   private async touchAttempt(attemptId: string): Promise<void> {
-    const attempt = await this.db.attempts.get(attemptId);
-    if (attempt) await this.db.attempts.put({ ...attempt, updatedAt: Date.now() });
+    await this.db.attempts.update(attemptId, { updatedAt: Date.now() });
   }
 }

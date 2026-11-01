@@ -1,8 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
-/** The draft sample reading runner route (reachable because the route builds
- * drafts with a noindex tag — SPEC §5, M3). */
-export const READING_URL = '/practice/sample-01/reading';
+/** Draft sample route included only by the explicitly flagged e2e build. */
+export const READING_URL = '/test/sample-01/reading';
 
 /** 360px mobile viewport with touch, for the mobile/touch coverage (SPEC §10). */
 export const MOBILE = { viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true };
@@ -22,5 +21,5 @@ export async function showQuestions(page: Page): Promise<void> {
 
 /** Let IndexedDB autosave flush before a reload-based persistence check. */
 export async function waitForAutosave(page: Page): Promise<void> {
-  await page.waitForTimeout(300);
+  await expect(page.getByTestId('reading-runner')).toHaveAttribute('data-saved', 'true');
 }

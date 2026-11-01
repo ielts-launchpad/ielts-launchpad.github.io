@@ -8,6 +8,8 @@ import type { RunnerController } from './types';
 
 interface UseRunnerResult {
   loading: boolean;
+  saved: boolean;
+  saveError: boolean;
   controller: RunnerController;
   answers: AnswerMap;
   flagged: Set<string>;
@@ -28,6 +30,7 @@ interface UseRunnerResult {
     quote: string,
   ) => void;
   removeHighlight: (id: string) => void;
+  updateNote: (id: string, note: string) => void;
 }
 
 const FONT_SETTING_KEY = 'reading.fontScale';
@@ -46,6 +49,8 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
   const nodes = useRef(new Map<string, HTMLElement>());
 
   const [loading, setLoading] = useState(true);
+  const [pendingWrites, setPendingWrites] = useState(0);
+  const [saveError, setSaveError] = useState(false);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -54,6 +59,14 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
   const [result, setResult] = useState<{ raw: number; max: number } | null>(null);
   const [fontScale, setFontScaleState] = useState(1);
   const [timerStartedAt, setTimerStartedAt] = useState<number | null>(null);
+
+  const persist = useCallback((write: Promise<unknown> | undefined): void => {
+    if (!write) return;
+    setPendingWrites((pending) => pending + 1);
+    void write.catch(() => setSaveError(true)).finally(() => {
+      setPendingWrites((pending) => pending - 1);
+    });
+  }, []);
 
   useEffect(() => {
     answersRef.current = answers;
@@ -79,10 +92,16 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
         setFlagged(new Set(existing.flagged));
         setHighlights(savedHighlights);
         setFontScaleState(existing.fontScale || 1);
-        setTimerStartedAt(existing.timerStartedAt ?? null);
+        const timerStart = mode === 'exam' ? (existing.timerStartedAt ?? now) : undefined;
+        await repo.updateAttempt(attemptId, { mode, timerStartedAt: timerStart });
+        if (!active) return;
+        setTimerStartedAt(timerStart ?? null);
       } else {
         attemptId = newId();
         const timerStart = mode === 'exam' ? now : undefined;
+        const setting = await repo.getSetting<unknown>(FONT_SETTING_KEY, 1);
+        const initialScale = typeof setting === 'number' && Number.isFinite(setting)
+          ? Math.min(1.6, Math.max(0.8, setting)) : 1;
         await repo.createAttempt({
           id: attemptId,
           testId: data.testId,
@@ -93,14 +112,17 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
           updatedAt: now,
           timerStartedAt: timerStart,
           flagged: [],
-          fontScale: 1,
+          fontScale: initialScale,
         });
         if (!active) return;
         attemptIdRef.current = attemptId;
+        setFontScaleState(initialScale);
         setTimerStartedAt(timerStart ?? null);
       }
       setLoading(false);
-    })();
+    })().catch(() => {
+      if (active) setSaveError(true);
+    });
 
     return () => {
       active = false;
@@ -113,18 +135,18 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
       answersRef.current = next;
       return next;
     });
-    void repoRef.current?.upsertAnswer(attemptIdRef.current, questionId, response);
-  }, []);
+    persist(repoRef.current?.upsertAnswer(attemptIdRef.current, questionId, response));
+  }, [persist]);
 
   const toggleFlag = useCallback((questionId: string): void => {
     setFlagged((prev) => {
       const next = new Set(prev);
       if (next.has(questionId)) next.delete(questionId);
       else next.add(questionId);
-      void repoRef.current?.updateAttempt(attemptIdRef.current, { flagged: [...next] });
+      persist(repoRef.current?.updateAttempt(attemptIdRef.current, { flagged: [...next] }));
       return next;
     });
-  }, []);
+  }, [persist]);
 
   const checkAnswer = useCallback((questionId: string): void => {
     setChecked((prev) => new Set(prev).add(questionId));
@@ -145,9 +167,9 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
   const setFontScale = useCallback((scale: number): void => {
     const clamped = Math.min(1.6, Math.max(0.8, Number(scale.toFixed(2))));
     setFontScaleState(clamped);
-    void repoRef.current?.updateAttempt(attemptIdRef.current, { fontScale: clamped });
-    void repoRef.current?.setSetting(FONT_SETTING_KEY, clamped);
-  }, []);
+    persist(repoRef.current?.updateAttempt(attemptIdRef.current, { fontScale: clamped }));
+    persist(repoRef.current?.setSetting(FONT_SETTING_KEY, clamped));
+  }, [persist]);
 
   const addHighlight = useCallback(
     (passage: number, paragraphIndex: number, start: number, end: number, quote: string): void => {
@@ -163,15 +185,21 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
         createdAt: Date.now(),
       };
       setHighlights((prev) => [...prev, record]);
-      void repoRef.current?.addHighlight(record);
+      persist(repoRef.current?.addHighlight(record));
     },
-    [],
+    [persist],
   );
 
   const removeHighlight = useCallback((id: string): void => {
     setHighlights((prev) => prev.filter((h) => h.id !== id));
-    void repoRef.current?.removeHighlight(id);
-  }, []);
+    persist(repoRef.current?.removeHighlight(id));
+  }, [persist]);
+
+  const updateNote = useCallback((id: string, note: string): void => {
+    setHighlights((prev) => prev.map((highlight) => highlight.id === id
+      ? { ...highlight, note } : highlight));
+    persist(repoRef.current?.updateHighlight(id, { note }));
+  }, [persist]);
 
   const gradeOne = useCallback(
     (group: QuestionGroup, question: Question): QuestionResult =>
@@ -193,7 +221,7 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
     const now = Date.now();
     setSubmitted(true);
     setResult({ raw, max });
-    void repoRef.current?.saveResult({
+    persist(repoRef.current?.saveResult({
       attemptId: attemptIdRef.current,
       testId: data.testId,
       skill: 'reading',
@@ -201,12 +229,12 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
       max,
       results,
       createdAt: now,
-    });
-    void repoRef.current?.updateAttempt(attemptIdRef.current, {
+    }));
+    persist(repoRef.current?.updateAttempt(attemptIdRef.current, {
       status: 'submitted',
       submittedAt: now,
-    });
-  }, [data]);
+    }));
+  }, [data, persist]);
 
   const controller = useMemo<RunnerController>(
     () => ({
@@ -237,6 +265,8 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
 
   return {
     loading,
+    saved: !loading && pendingWrites === 0 && !saveError,
+    saveError,
     controller,
     answers,
     flagged,
@@ -251,5 +281,6 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
     focusQuestion,
     addHighlight,
     removeHighlight,
+    updateNote,
   };
 }

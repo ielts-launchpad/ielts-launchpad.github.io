@@ -55,6 +55,17 @@ describe('RunnerRepository — attempts', () => {
 });
 
 describe('RunnerRepository — answers (autosave upsert)', () => {
+  it('keeps different questions when upserts run concurrently', async () => {
+    const repo = freshRepo();
+    await repo.createAttempt(attempt());
+    await Promise.all(Array.from({ length: 20 }, (_, index) =>
+      repo.upsertAnswer('a1', `q${index}`, `answer-${index}`),
+    ));
+    expect(await repo.getAnswers('a1')).toEqual(Object.fromEntries(
+      Array.from({ length: 20 }, (_, index) => [`q${index}`, `answer-${index}`]),
+    ));
+  });
+
   it('upserts answers one at a time without clobbering others', async () => {
     const repo = freshRepo();
     await repo.createAttempt(attempt());

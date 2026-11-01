@@ -553,6 +553,7 @@
 - [ ] Confirm the current Groq/Cerebras/Gemini model IDs and browser (CORS) access for own-key mode
 - [ ] Take every published mock end-to-end in exam mode (desktop + mobile)
 - [ ] Test AI Writing/Speaking evaluation on the deployed Worker, including the daily-limit fallback
+- [ ] Re-check Astro experimental CSP after upgrades
 
 **Tests:** Manual — every checklist item verified and ticked; blocks release tag until complete.
 

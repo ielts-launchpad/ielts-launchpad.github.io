@@ -86,7 +86,7 @@ function GapField({
   return (
     <span className={inline ? 'inline-flex flex-col' : 'block'}>
       <label htmlFor={id} className="sr-only">
-        {format(en.runner.navigator.goToQuestion, { n: question.number })}
+        {format(t.answerLabel, { n: question.number })}
       </label>
       <input
         ref={inline ? ref : undefined}
