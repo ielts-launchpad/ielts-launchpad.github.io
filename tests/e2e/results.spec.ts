@@ -7,6 +7,7 @@ import { expandOptionalWords } from '../../src/engine/text/words';
 import { skillBand } from '../../src/exams/ielts/bands';
 import { buildReadingRunnerData } from '../../src/engine/content/runner-data';
 import { mockRunnerFixture } from '../fixtures/reading-mock';
+import { sampleAudioTime } from '../fixtures/sample-audio';
 import { expectNoA11yViolations } from './helpers/a11y';
 import { gotoReading, MOBILE, showQuestions, waitForAutosave } from './helpers/runner';
 import { endPart, gotoListening, waitListeningSaved } from './helpers/listening';
@@ -16,6 +17,13 @@ const sample = loadAllTests({ contentDir: join(process.cwd(), 'content'), public
 if (!sample) throw new Error('sample-01 fixture missing');
 const readingGroups = sample.reading.flatMap((section) => section.passage.groups);
 const listeningGroups = sample.listening.flatMap((section) => section.part.groups);
+
+function replayOffset(id: string): number {
+  const start = listeningGroups.flatMap((group) => group.questions)
+    .find((question) => question.id === id)?.evidence?.audioStart;
+  if (start === undefined) throw new Error(`Missing sample evidence timing: ${id}`);
+  return Math.max(0, start - 3);
+}
 
 async function answerAll(page: Page, groups: QuestionGroup[]): Promise<void> {
   for (const group of groups) {
@@ -112,18 +120,20 @@ test('a full 40-question Reading mock still shows its estimated band', async ({ 
 
 test('listening answer-location seeks to audioStart minus three seconds and plays', async ({ page }) => {
   await submit(page, 'listening');
+  const firstOffset = replayOffset('L1-q1');
+  const secondOffset = replayOffset('L1-q2');
   const review = page.getByTestId('review-L1-q1');
   const audio = page.getByTestId('results-audio');
   await review.getByRole('button', { name: 'Play answer location' }).click();
-  await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeGreaterThanOrEqual(5.2);
-  expect(await audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeLessThan(7.2);
+  await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeGreaterThanOrEqual(firstOffset);
+  expect(await audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeLessThan(firstOffset + 2);
   await page.getByTestId('review-L1-q2').getByRole('button', { name: 'Play answer location' }).click();
-  await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeGreaterThanOrEqual(11);
-  expect(await audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeLessThan(13);
+  await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeGreaterThanOrEqual(secondOffset);
+  expect(await audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeLessThan(secondOffset + 2);
   expect(await audio.evaluate((node) => (node as HTMLAudioElement).paused)).toBe(false);
   await review.getByRole('button', { name: 'Play answer location' }).click();
-  await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeLessThan(7.2);
-  await expect.poll(async () => Number(await page.getByTestId('audio-seek').inputValue())).toBeGreaterThanOrEqual(5.2);
+  await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeLessThan(firstOffset + 2);
+  await expect.poll(async () => Number(await page.getByTestId('audio-seek').inputValue())).toBeGreaterThanOrEqual(firstOffset);
 });
 
 test('shared Results player reloads metadata and progress when replay switches audio parts', async ({ page }) => {
@@ -140,12 +150,13 @@ test('shared Results player reloads metadata and progress when replay switches a
   await waitListeningSaved(page);
   await page.getByTestId('results-link').click();
   const audio = page.getByTestId('results-audio');
+  const offset = replayOffset('L1-q1');
   for (const [question, part] of [['mock-q11', 2], ['mock-q1', 1]] as const) {
     await page.getByTestId(`review-${question}`).getByRole('button', { name: 'Play answer location' }).click();
     await expect(audio).toHaveAttribute('src', `/audio/academic/sample-01/part-1.opus?fixture-part=${part}`);
-    await expect.poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime)).toBeGreaterThanOrEqual(5.2);
-    expect(await audio.evaluate((element) => (element as HTMLAudioElement).currentTime)).toBeLessThan(7.2);
-    await expect(page.getByTestId('audio-time')).toContainText('of 0:24');
+    await expect.poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime)).toBeGreaterThanOrEqual(offset);
+    expect(await audio.evaluate((element) => (element as HTMLAudioElement).currentTime)).toBeLessThan(offset + 2);
+    await expect(page.getByTestId('audio-time')).toContainText(`of ${sampleAudioTime}`);
   }
 });
 

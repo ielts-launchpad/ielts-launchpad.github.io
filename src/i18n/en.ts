@@ -194,7 +194,7 @@ export const en = {
       reviewTimer: 'Review time remaining',
       reviewExpired: 'Review time is up. Answers submitted.',
       heading: 'Listening questions',
-      sampleAudio: 'This draft uses silent placeholder audio for testing, not a recorded conversation.',
+      sampleAudio: 'This draft uses locally generated synthetic speech for testing, not a recording of real speakers.',
     },
     reading: {
       title: 'Reading — IELTS Launchpad',

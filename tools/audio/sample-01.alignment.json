@@ -1,0 +1,50 @@
+{
+  "sampleRate": 24000,
+  "totalSamples": 723504,
+  "durationSec": 30.146,
+  "turns": [
+    {
+      "speaker": "NARRATOR", "voice": "bf_emma", "startSample": 7200, "endSample": 85024,
+      "chunks": [{ "text": "You will hear a conversation at a community garden centre.", "startSample": 7200, "endSample": 85024 }]
+    },
+    {
+      "speaker": "CLERK", "voice": "bm_george", "startSample": 93424, "endSample": 166128,
+      "chunks": [{ "text": "Good morning. Can I take your name for the booking?", "startSample": 93424, "endSample": 166128 }]
+    },
+    {
+      "speaker": "VISITOR", "voice": "bf_isabella", "startSample": 174528, "endSample": 217536,
+      "chunks": [{ "text": "Yes, it's Sarah Collins.", "startSample": 174528, "endSample": 217536 }]
+    },
+    {
+      "speaker": "CLERK", "voice": "bm_george", "startSample": 225936, "endSample": 331248,
+      "chunks": [
+        { "text": "Thank you.", "startSample": 225936, "endSample": 248976 },
+        { "text": "The workshop starts at the main entrance at ten o'clock.", "startSample": 251376, "endSample": 331248 }
+      ]
+    },
+    {
+      "speaker": "VISITOR", "voice": "bf_isabella", "startSample": 339648, "endSample": 383680,
+      "chunks": [{ "text": "And where do we leave our bikes?", "startSample": 339648, "endSample": 383680 }]
+    },
+    {
+      "speaker": "CLERK", "voice": "bm_george", "startSample": 392080, "endSample": 486640,
+      "chunks": [
+        { "text": "You can", "startSample": 392080, "endSample": 414608 },
+        { "text": "leave them by the north gate, next to the shed.", "startSample": 417008, "endSample": 486640 }
+      ]
+    },
+    {
+      "speaker": "CLERK", "voice": "bm_george", "startSample": 495040, "endSample": 660096,
+      "chunks": [
+        { "text": "Please bring", "startSample": 495040, "endSample": 522688 },
+        { "text": "a pair of gloves to protect your hands, and", "startSample": 525088, "endSample": 597792 },
+        { "text": "a small trowel for digging holes.", "startSample": 600192, "endSample": 660096 }
+      ]
+    },
+    {
+      "speaker": "VISITOR", "voice": "bf_isabella", "startSample": 668496, "endSample": 711504,
+      "chunks": [{ "text": "Great, thank you very much.", "startSample": 668496, "endSample": 711504 }]
+    }
+  ],
+  "audioStart": { "L1-q1": 10.5, "L1-q2": 17.4, "L1-q3": 21.9, "L1-q4": 25.0 }
+}

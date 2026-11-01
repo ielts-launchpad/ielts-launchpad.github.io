@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { oggOpusDurationSec } from '../../src/engine/audio/ogg';
+import { sampleListening } from '../fixtures/sample-audio';
 
 const SAMPLE = join(
   process.cwd(),
@@ -13,10 +14,10 @@ const SAMPLE = join(
 );
 
 describe('oggOpusDurationSec', () => {
-  it('reads the committed sample duration (~24s) from its granule position', () => {
+  it('reads the committed sample duration matching its content metadata', () => {
     const duration = oggOpusDurationSec(readFileSync(SAMPLE));
     expect(duration).not.toBeNull();
-    expect(Math.abs((duration as number) - 24)).toBeLessThanOrEqual(1);
+    expect(Math.abs((duration as number) - sampleListening.part.durationSec)).toBeLessThanOrEqual(1);
   });
 
   it('returns null for a non-Ogg buffer', () => {
