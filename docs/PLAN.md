@@ -547,6 +547,7 @@
 **Acceptance criteria (manual checklist — all must be ticked before tagging a release):**
 
 - [ ] Verify band tables in `src/exams/ielts/bands.ts` against ielts.org
+- [ ] Verify General Training reading bands below 15/40 (table currently a provisional continuation)
 - [ ] Verify all links in `content/official-links.yaml` (incl. British Council pages)
 - [ ] Confirm Groq/Cerebras terms allow a shared proxy, users 16+, EEA/UK use; confirm Azure TTS output terms
 - [ ] Confirm the current Groq/Cerebras/Gemini model IDs and browser (CORS) access for own-key mode

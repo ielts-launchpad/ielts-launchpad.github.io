@@ -68,15 +68,27 @@ export function expandOptionalWords(answer: string): string[] {
 const NUMERIC_TOKEN = /^\d[\d.,:/-]*$/;
 
 /**
+ * Whether a token counts as "a number" for the word limit (SPEC §4). A token is
+ * numeric after stripping a single leading currency symbol (£ $ € ¥) and a
+ * trailing `%` or `am`/`pm`, so `£25`, `25%` and `9am` each count as a number,
+ * not a word. A number written in words (e.g. "five") is NOT matched here — it
+ * counts as an ordinary word.
+ */
+function isNumberToken(token: string): boolean {
+  const stripped = token.replace(/^[£$€¥]/, '').replace(/(?:%|[ap]m)$/i, '');
+  return NUMERIC_TOKEN.test(stripped);
+}
+
+/**
  * Count words per IELTS rules (SPEC §4): words are whitespace tokens; a
  * hyphenated token counts as one word; when `numberAllowed`, a single numeric
- * token is not counted as a word.
+ * token (see {@link isNumberToken}) is not counted as a word.
  */
 export function countWords(value: string, options: { numberAllowed?: boolean } = {}): number {
   const tokens = normaliseWhitespace(value).split(' ').filter(Boolean);
   let count = tokens.length;
   if (options.numberAllowed) {
-    const firstNumeric = tokens.findIndex((t) => NUMERIC_TOKEN.test(t));
+    const firstNumeric = tokens.findIndex(isNumberToken);
     if (firstNumeric !== -1) {
       count -= 1;
     }

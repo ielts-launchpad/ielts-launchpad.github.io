@@ -54,6 +54,22 @@ describe('countWords', () => {
   it('counts the numeric token when numberAllowed is not set', () => {
     expect(countWords('20 euros')).toBe(2);
   });
+
+  it('treats a token with a leading currency symbol as a number', () => {
+    expect(countWords('£25 per night', { numberAllowed: true })).toBe(2);
+  });
+
+  it('treats a percentage token as a number', () => {
+    expect(countWords('25%', { numberAllowed: true })).toBe(0);
+  });
+
+  it('treats an am/pm time token as a number', () => {
+    expect(countWords('9am', { numberAllowed: true })).toBe(0);
+  });
+
+  it('counts a number written in words as a word, not the allowed number', () => {
+    expect(countWords('five euros', { numberAllowed: true })).toBe(2);
+  });
 });
 
 describe('stripTranscriptMarkup', () => {
