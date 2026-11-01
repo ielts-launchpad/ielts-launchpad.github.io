@@ -22,6 +22,8 @@ it('unflagged production build contains no sample-01 or mock-fixture route', () 
     expect(existsSync(join(output, 'index.html'))).toBe(true);
     expect(existsSync(join(output, 'test/sample-01'))).toBe(false);
     expect(existsSync(join(output, 'test/mock-fixture'))).toBe(false);
+    expect(existsSync(join(output, 'test/mock-listening-fixture'))).toBe(false);
+    expect(existsSync(join(output, 'results/index.html'))).toBe(true);
     expect(existsSync(join(output, 'practice/sample-01'))).toBe(false);
   } finally {
     rmSync(output, { recursive: true, force: true });

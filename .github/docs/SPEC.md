@@ -171,7 +171,7 @@ Overall band rounding: mean of 4 skills; fractional part < .25 → down; .25–<
 - Answers autosave to IndexedDB every change; resume an in-progress attempt after refresh.
 
 ## 6. Results & analytics
-- Results page: raw score, estimated band, per-section breakdown; every question shows user answer, correct answer(s), correct/incorrect, error class, evidence (quote highlighted in passage/transcript), explanation, and for listening a ▶ "Play answer location" button (seek to `audioStart - 3s`).
+- Results page (`/results?attemptId=<id>`, static HTTP 200, noindex): load the attempt from this browser's IndexedDB. If absent, show "Result not found on this device" and a link to Tests; do not use a 404 fallback. Show raw score, estimated band, per-section breakdown; every question shows user answer, correct answer(s), correct/incorrect, error class, evidence (quote highlighted in passage/transcript), explanation, and for listening a ▶ "Play answer location" button (seek to `audioStart - 3s`).
 - "Something wrong with this question?" link (results page only) → prefilled GitHub issue URL with test id, question id, user answer.
 - Dashboard: band history chart per skill + overall; accuracy by `qtype` across all attempts; error-class frequency; top 3 weaknesses with recommendations from `content/tips.yaml`; estimated current band (mean of latest result per skill; skills without data shown as "—").
 - Export all data (JSON download) / import (validate with Zod, merge by id).
@@ -210,7 +210,7 @@ Speaking response: same shape with criteria FC, LR, GRA, P; `P.limited: true` wh
 User may paste a Groq or Gemini API key (stored only in IndexedDB, never sent to our Worker). Then the browser calls the provider directly with the same prompts (shared prompt module in `src/ai/prompts.ts`, mirrored in worker). Gemini mode sends the audio for full Pronunciation scoring. Show warning: "Your key is stored only in this browser. Use a key with spending limits. Google requires users to be 18+." Fallback offered automatically when the Worker returns `DAILY_LIMIT` or is unavailable.
 
 ## 9. Pages
-Home, Tests (list by skill/kind), Test runner (`/test/[id]/[skill]`), Results (`/results/[attemptId]`), Dashboard, Planner, Settings (own key, font size, export/import, delete all data), Official resources, How scoring works, About (disclaimer, AI-generated content notice, AI-generated audio notice), Privacy, Terms, Licences & credits, Support (Ko-fi + GitHub Sponsors), 404.
+Home, Tests (list by skill/kind), Test runner (`/test/[id]/[skill]`), Results (`/results?attemptId=<id>`, static page, noindex, device-local lookup), Dashboard, Planner, Settings (own key, font size, export/import, delete all data), Official resources, How scoring works, About (disclaimer, AI-generated content notice, AI-generated audio notice), Privacy, Terms, Licences & credits, Support (Ko-fi + GitHub Sponsors), 404.
 SEO: titles like "IELTS Launchpad — Free IELTS Academic Mock Tests with AI Feedback", meta descriptions, Open Graph, sitemap, robots.txt.
 
 ## 10. Non-functional

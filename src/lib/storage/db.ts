@@ -7,6 +7,8 @@
 import Dexie, { type Table } from 'dexie';
 import type { QuestionResult } from '../../engine/grading/grade';
 import type { AnswerMap, RunnerMode } from '../../engine/runner/types';
+import type { ListeningState } from '../../engine/runner/listening';
+import type { ResultReview } from '../../engine/results/model';
 
 export type AttemptSkill = 'reading' | 'listening';
 export type AttemptStatus = 'in-progress' | 'submitted';
@@ -25,6 +27,7 @@ export interface AttemptRecord {
   timerStartedAt?: number;
   flagged: string[];
   fontScale: number;
+  listening?: ListeningState;
 }
 
 /** All answers for an attempt, stored as one upsertable blob keyed by id. */
@@ -36,6 +39,7 @@ export interface AnswerRecord {
 
 /** A graded skill result snapshot for an attempt (SPEC §6). */
 export interface ResultRecord {
+  review?: ResultReview;
   attemptId: string;
   testId: string;
   skill: AttemptSkill;

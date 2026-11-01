@@ -280,7 +280,7 @@
 <!-- meta: id=M4.3; label=code; milestone=M4; depends=M2.2,M3.8; assignee= -->
 **Implements:** SPEC §6, §4.
 
-**Acceptance criteria:** Shows raw score, estimated band, per-section breakdown; per question: user answer, correct answer(s), correct/incorrect, error class, evidence quote highlighted in passage/transcript, explanation.
+**Acceptance criteria:** Static HTTP-200 `/results?attemptId=<id>` page, noindex, loading from device-local IndexedDB; missing id shows "Result not found on this device" with a Tests link (no 404 fallback). Shows raw score, estimated band, per-section breakdown; per question: user answer, correct answer(s), correct/incorrect, error class, evidence quote highlighted in passage/transcript, explanation.
 
 **Tests:** Unit — results view-model from a graded attempt. e2e — every field renders for a sample attempt. axe — zero serious/critical.
 

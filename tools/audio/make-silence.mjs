@@ -8,13 +8,12 @@
 // exactly (see src/engine/audio/ogg.ts). Each audio packet is a single TOC byte
 // describing a 20 ms mono SILK frame with no compressed data.
 //
-// KNOWN M4 RISK — browser playability: a 1-byte (TOC-only) Opus packet carries a
-// zero-length frame. libopus-based decoders generally render these as DTX/PLC
-// silence, so the file should play, but this is not guaranteed across every
-// browser/decoder and we cannot emit genuinely encoded SILK/CELT silence frames
-// by hand without a codec dependency. This placeholder is only for draft
-// content; real, fully-encoded audio comes from the TTS pipeline in M4, which
-// also removes this risk.
+// M4 verified the committed sample-01 file decodes and advances in Chromium;
+// tests/e2e/listening.spec.ts guards real playback, not just metadata/events.
+// These 1-byte TOC packets render as DTX/PLC silence in Chromium. They are only
+// draft placeholders, not spoken exam content or a cross-browser codec claim.
+// No ffmpeg replacement was necessary. Real spoken audio belongs to M7's TTS
+// content pipeline; verify other target browsers before release.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';

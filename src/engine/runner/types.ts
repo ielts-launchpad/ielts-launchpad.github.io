@@ -25,6 +25,7 @@ export interface RunnerPassage {
 
 /** Everything the Reading runner island needs, fully JSON-serialisable. */
 export interface ReadingRunnerData {
+  variant?: 'academic' | 'general';
   testId: string;
   testTitle: string;
   kind: 'mock' | 'practice';
@@ -32,6 +33,23 @@ export interface ReadingRunnerData {
   /** Exam-mode countdown length; Reading is 60 minutes (SPEC §5). */
   durationSec: number;
   passages: RunnerPassage[];
+}
+
+export interface RunnerListeningPart {
+  part: number;
+  audio: string;
+  durationSec: number;
+  transcript: string;
+  groups: QuestionGroup[];
+}
+
+export interface ListeningRunnerData {
+  testId: string;
+  testTitle: string;
+  variant: 'academic' | 'general';
+  kind: 'mock' | 'practice';
+  isDraft: boolean;
+  parts: RunnerListeningPart[];
 }
 
 /** User answers keyed by question id (matches {@link UserResponse}). */

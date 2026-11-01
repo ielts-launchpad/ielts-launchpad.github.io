@@ -79,6 +79,16 @@ export class RunnerRepository {
     await this.db.results.put(result);
   }
 
+  /** Publish the review snapshot and close the attempt in the same transaction. */
+  async completeAttempt(result: ResultRecord): Promise<void> {
+    await this.db.transaction('rw', this.db.results, this.db.attempts, async () => {
+      await this.db.results.put(result);
+      await this.db.attempts.update(result.attemptId, {
+        status: 'submitted', submittedAt: result.createdAt, updatedAt: result.createdAt,
+      });
+    });
+  }
+
   getResult(attemptId: string): Promise<ResultRecord | undefined> {
     return this.db.results.get(attemptId);
   }
