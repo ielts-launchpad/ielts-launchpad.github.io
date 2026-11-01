@@ -444,7 +444,7 @@
 <!-- meta: id=M7.4; label=code; milestone=M7; depends=M1.2; assignee= -->
 **Implements:** SPEC §2.
 
-**Acceptance criteria:** `npm run review` serves a local app to preview/QA draft content (incl. drafts); never built into production.
+**Acceptance criteria:** `npm run review` serves a local app to preview/QA draft content (incl. drafts); never built into production. The generator/review app suggests accepted variants for numbers (£25/25, 9am/9 am/9:00) and UK/US spellings, for the author to approve.
 
 **Tests:** e2e (local) — review app loads sample-01; excluded from prod build.
 
@@ -553,6 +553,7 @@
 - [ ] Confirm the current Groq/Cerebras/Gemini model IDs and browser (CORS) access for own-key mode
 - [ ] Take every published mock end-to-end in exam mode (desktop + mobile)
 - [ ] Test AI Writing/Speaking evaluation on the deployed Worker, including the daily-limit fallback
+- [ ] Re-check Astro experimental CSP after upgrades
 
 **Tests:** Manual — every checklist item verified and ticked; blocks release tag until complete.
 

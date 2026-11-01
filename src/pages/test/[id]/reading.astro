@@ -1,0 +1,46 @@
+---
+import { join } from 'node:path';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { loadAllTests } from '@/engine/content/loader';
+import { buildReadingRunnerData } from '@/engine/content/runner-data';
+import type { ReadingRunnerData } from '@/engine/runner/types';
+import { ReadingRunner } from '@/components/runner/ReadingRunner';
+import { en } from '@/i18n/en';
+
+export async function getStaticPaths() {
+  const root = process.cwd();
+  const includeDrafts = import.meta.env.DEV || process.env.INCLUDE_DRAFTS === 'true';
+  const tests = loadAllTests({
+    contentDir: join(root, 'content'),
+    publicDir: join(root, 'public'),
+    includeDrafts,
+  });
+  const paths = tests
+    .filter((test) => test.reading.length > 0)
+    .map((test) => ({
+      params: { id: test.meta.id },
+      props: { data: buildReadingRunnerData(test) },
+    }));
+
+  // Test-only mock metadata uses the same original sample passage as all e2e tests.
+  if (process.env.INCLUDE_DRAFTS === 'true') {
+    const sample = paths.find((path) => path.params.id === 'sample-01');
+    if (sample) {
+      const { mockRunnerFixture } = await import('../../../../tests/fixtures/reading-mock');
+      const data = mockRunnerFixture(sample.props.data);
+      paths.push({ params: { id: data.testId }, props: { data } });
+    }
+  }
+  return paths;
+}
+
+interface Props {
+  data: ReadingRunnerData;
+}
+const { data } = Astro.props;
+---
+
+<BaseLayout title={en.runner.reading.title} description={en.runner.reading.description} noindex={data.isDraft} wide>
+  <h1 class="sr-only">{data.testTitle}</h1>
+  <ReadingRunner client:only="react" data={data} />
+</BaseLayout>

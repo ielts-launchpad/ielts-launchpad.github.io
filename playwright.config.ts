@@ -21,8 +21,9 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run build && npm run preview',
+    env: { INCLUDE_DRAFTS: 'true' },
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });
