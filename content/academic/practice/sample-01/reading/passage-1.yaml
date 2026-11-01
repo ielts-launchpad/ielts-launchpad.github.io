@@ -191,9 +191,11 @@ groups:
           paragraph: C
 
   - id: p1-g7-note
-    instructions: 'Complete the notes below. Choose NO MORE THAN TWO WORDS from the passage for each answer.'
+    instructions: 'Label the diagram below. Choose NO MORE THAN TWO WORDS from the passage for each answer.'
     interaction: gap
-    qtype: note-completion
+    qtype: diagram-labelling
+    image: /images/academic/sample-01/beekeeping-diagram.svg
+    imageAlt: 'A school beside a public path. Label 18 marks the separation between the path and the hives. Label 19 points to the hive location on top of the school.'
     wordLimit:
       words: 2
     template: |

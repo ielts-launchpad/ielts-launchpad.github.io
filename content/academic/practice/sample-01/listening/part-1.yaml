@@ -4,9 +4,11 @@ durationSec: 24
 transcript: part-1.transcript.md
 groups:
   - id: L1-g1-form
-    instructions: 'Complete the form below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.'
+    instructions: 'Label the garden plan below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.'
     interaction: gap
-    qtype: form-completion
+    qtype: map-plan-labelling
+    image: /images/academic/sample-01/workshop-plan.svg
+    imageAlt: 'Plan of a garden workshop site, with north at the top. Label 1 points to the entry on the south edge, and label 2 points to the gate beside bicycle parking on the north edge.'
     wordLimit:
       words: 2
       numberAllowed: true

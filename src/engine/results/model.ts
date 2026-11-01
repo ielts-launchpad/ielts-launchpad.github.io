@@ -59,6 +59,7 @@ export interface ResultsModel {
   skill: ResultInput['skill'];
   raw: number;
   max: number;
+  percentage: number;
   /** UI supplies the exam-specific band mapper only when this is true. */
   canEstimateBand: boolean;
   variant: ResultReview['variant'] | null;
@@ -194,7 +195,8 @@ export function buildResultsModel(result: ResultInput): ResultsModel {
     skill: result.skill,
     raw: result.raw,
     max: result.max,
-    canEstimateBand: result.review !== undefined,
+    percentage: result.max > 0 ? Math.round((result.raw / result.max) * 100) : 0,
+    canEstimateBand: result.max === 40 && result.review !== undefined,
     variant: result.review?.variant ?? null,
     sections,
     questions: result.results.map((grade) => snapshots.get(grade.questionId) ?? {

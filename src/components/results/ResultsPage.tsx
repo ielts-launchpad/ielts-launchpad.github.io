@@ -149,12 +149,17 @@ export default function ResultsPage(): React.JSX.Element {
           <dt className="font-medium">{messages.rawScore}</dt>
           <dd className="mt-2 text-3xl font-bold tabular-nums" data-testid="results-score">{model.raw}/{model.max}</dd>
         </div>
-        <div className="rounded-xl border border-slate-300 bg-slate-50 p-5">
+        {model.max === 40 ? <div className="rounded-xl border border-slate-300 bg-slate-50 p-5">
           <dt className="font-medium">{messages.estimatedBand}</dt>
           <dd className="mt-2 font-semibold" data-testid="results-band">{band ?? messages.unavailableBand}</dd>
           {band !== null && <dd className="mt-2 text-sm text-slate-700">{messages.bandDisclaimer}</dd>}
-          {model.max !== 40 && <dd className="mt-2 text-sm text-slate-700">{messages.partialBand}</dd>}
-        </div>
+        </div> : <div className="rounded-xl border border-slate-300 bg-slate-50 p-5">
+          <dt className="font-medium">{messages.percentage}</dt>
+          <dd className="mt-2 text-3xl font-bold tabular-nums" data-testid="results-percentage">
+            {format(messages.percentageValue, { percentage: model.percentage })}
+          </dd>
+          <dd className="mt-2 text-sm text-slate-700">{messages.partialBand}</dd>
+        </div>}
       </dl>
 
       {initialAudio && <div className="space-y-2">

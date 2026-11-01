@@ -52,6 +52,7 @@ test('mock ignores mode override, auto-advances four parts, reviews 120s then su
   await page.getByTestId('results-link').click();
   await expect(page.getByTestId('results-score')).toHaveText('1/40');
   await expect(page.getByTestId('results-band')).toHaveText('1');
+  await expect(page.getByText('Band estimates need a full 40-question section', { exact: true })).toHaveCount(0);
 });
 
 test('practice supports labelled play/pause/seek/replay controls', async ({ page }) => {

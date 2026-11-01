@@ -44,7 +44,7 @@ describe('results model', () => {
     const result = input();
     const before = structuredClone(result);
     const model = buildResultsModel(result);
-    expect(model).toMatchObject({ raw: 2, max: 3, skill: 'listening', variant: 'academic', canEstimateBand: true });
+    expect(model).toMatchObject({ raw: 2, max: 3, percentage: 67, skill: 'listening', variant: 'academic', canEstimateBand: false });
     expect(model.sections.map(({ number, raw, max }) => ({ number, raw, max }))).toEqual([
       { number: 1, raw: 1, max: 1 }, { number: 2, raw: 1, max: 2 },
     ]);
@@ -61,14 +61,26 @@ describe('results model', () => {
     expect(result).toEqual(before);
   });
 
-  it('retains raw marks for the SPEC band table without rescaling partial practice scores', () => {
+  it.each(['reading', 'listening'] as const)('only estimates %s bands for exactly 40 questions, in either mode', (skill) => {
+    for (const kind of ['practice', 'mock'] as const) {
+      const result = input();
+      result.skill = skill;
+      result.review!.kind = kind;
+      for (const max of [0, 3, 4, 24, 39, 40, 41]) {
+        result.max = max;
+        expect(buildResultsModel(result)).toMatchObject({
+          raw: 2, max, canEstimateBand: max === 40,
+          percentage: max > 0 ? Math.round(200 / max) : 0,
+        });
+      }
+    }
+  });
+
+  it('does not estimate a 40-question result without a saved variant/review', () => {
     const result = input();
     result.max = 40;
-    expect(buildResultsModel(result).canEstimateBand).toBe(true);
-    result.review!.kind = 'mock';
-    expect(buildResultsModel(result).canEstimateBand).toBe(true);
-    result.max = 3;
-    expect(buildResultsModel(result).canEstimateBand).toBe(true);
+    delete result.review;
+    expect(buildResultsModel(result)).toMatchObject({ raw: 2, max: 40, percentage: 5, canEstimateBand: false });
   });
 
   it('retains scores and every graded question if the review snapshot is absent or incomplete', () => {

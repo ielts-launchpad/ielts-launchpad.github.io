@@ -224,6 +224,8 @@
 
 **Tests:** Unit — template token→question mapping; e2e — labelling interaction records answers. axe — image questions have accessible labels/alt.
 
+**Delivery note (#18):** Templates shipped in PR #73. The remaining image/diagram/map-plan labelling is included in M4 PR #74: shared image rendering, required descriptive `imageAlt`, labelled answer controls, and desktop/mobile keyboard, persistence and axe coverage. This is implemented here, not deferred to a later milestone; #18 remains open until PR #74 merges.
+
 ### M3.5 Runner shell & navigator
 <!-- meta: id=M3.5; label=code; milestone=M3; depends=M3.2; assignee= -->
 **Implements:** SPEC §5, §10.
@@ -280,9 +282,9 @@
 <!-- meta: id=M4.3; label=code; milestone=M4; depends=M2.2,M3.8; assignee= -->
 **Implements:** SPEC §6, §4.
 
-**Acceptance criteria:** Static HTTP-200 `/results?attemptId=<id>` page, noindex, loading from device-local IndexedDB; missing id shows "Result not found on this device" with a Tests link (no 404 fallback). Shows raw score, estimated band, per-section breakdown; per question: user answer, correct answer(s), correct/incorrect, error class, evidence quote highlighted in passage/transcript, explanation.
+**Acceptance criteria:** Static HTTP-200 `/results?attemptId=<id>` page, noindex, loading from device-local IndexedDB; missing id shows "Result not found on this device" with a Tests link (no 404 fallback). Shows raw score and per-section breakdown; an estimated band is shown only when `max === 40` with a saved variant/review. Partial sections show raw score, percentage rounded to the nearest whole percent, and "Band estimates need a full 40-question section", with no band estimate or rescaling. Per question: user answer, correct answer(s), correct/incorrect, error class, evidence quote highlighted in passage/transcript, explanation.
 
-**Tests:** Unit — results view-model from a graded attempt. e2e — every field renders for a sample attempt. axe — zero serious/critical.
+**Tests:** Unit — results view-model from a graded attempt; band eligibility requires exactly 40 questions and a saved review, regardless of mock/practice kind. e2e — every review field renders for sample-01; partial Reading/Listening samples show raw score/percentage and no band; 40-question Reading/Listening mock fixtures still show bands. axe — zero serious/critical.
 
 ### M4.4 Results extras: replay & issue link
 <!-- meta: id=M4.4; label=code; milestone=M4; depends=M4.3,M4.1; assignee= -->

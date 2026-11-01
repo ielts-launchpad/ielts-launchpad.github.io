@@ -5,6 +5,8 @@ import { gradeQuestion } from '../../src/engine/grading/grade';
 import type { QuestionGroup } from '../../src/engine/content/schema';
 import { expandOptionalWords } from '../../src/engine/text/words';
 import { skillBand } from '../../src/exams/ielts/bands';
+import { buildReadingRunnerData } from '../../src/engine/content/runner-data';
+import { mockRunnerFixture } from '../fixtures/reading-mock';
 import { expectNoA11yViolations } from './helpers/a11y';
 import { gotoReading, MOBILE, showQuestions, waitForAutosave } from './helpers/runner';
 import { gotoListening, waitListeningSaved } from './helpers/listening';
@@ -56,7 +58,10 @@ for (const skill of ['reading', 'listening'] as const) {
     const max = groups.flatMap((group) => group.questions.map((question) => gradeQuestion(group, question,
       group.interaction === 'multi' ? question.answers : expandOptionalWords(question.answers[0])[0]))).reduce((sum, result) => sum + result.maxMarks, 0);
     await expect(page.getByTestId('results-score')).toHaveText(`${max}/${max}`);
-    await expect(page.getByTestId('results-band')).toHaveText(String(skillBand(skill, 'academic', max)));
+    await expect(page.getByTestId('results-band')).toHaveCount(0);
+    await expect(page.getByText('Estimated band', { exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('results-percentage')).toHaveText('100%');
+    await expect(page.getByText('Band estimates need a full 40-question section', { exact: true })).toBeVisible();
     await expect(page.getByTestId('section-score-1')).toContainText(`${max}/${max}`);
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
     for (const group of groups) {
@@ -82,8 +87,28 @@ for (const skill of ['reading', 'listening'] as const) {
     const response = await page.reload();
     expect(response?.status()).toBe(200);
     await expect(page.getByTestId('results-score')).toHaveText(`${max}/${max}`);
+    await expect(page.getByTestId('results-band')).toHaveCount(0);
   });
 }
+
+test('a full 40-question Reading mock still shows its estimated band', async ({ page }) => {
+  const mock = mockRunnerFixture(buildReadingRunnerData(sample));
+  await page.goto('/test/mock-fixture/reading?mode=practice');
+  await expect(page.getByTestId('runner-mode')).toHaveText('Exam mode');
+  await expect(page.getByTestId('navigator').locator('li')).toHaveCount(40);
+  await answerAll(page, mock.passages.flatMap((passage) => passage.groups));
+  await page.getByTestId('submit-button').click();
+  await page.getByTestId('submit-confirm-yes').click();
+  await waitForAutosave(page);
+  await page.getByTestId('results-link').click();
+  await expect(page.getByTestId('results-score')).toHaveText('40/40');
+  await expect(page.getByTestId('results-band')).toHaveText(String(skillBand('reading', 'academic', 40)));
+  await expect(page.getByText('Band estimates need a full 40-question section', { exact: true })).toHaveCount(0);
+  for (const [number, max] of [[1, 14], [2, 13], [3, 13]]) {
+    await expect(page.getByTestId(`section-score-${number}`)).toContainText(`${max}/${max}`);
+  }
+  await expectNoA11yViolations(page);
+});
 
 test('listening answer-location seeks to audioStart minus three seconds and plays', async ({ page }) => {
   await submit(page, 'listening');
@@ -107,6 +132,8 @@ test('incorrect and blank answers show their actual error classifications', asyn
   await waitListeningSaved(page);
   await page.getByTestId('results-link').click();
   await expect(page.getByTestId('results-score')).toHaveText('1/4');
+  await expect(page.getByTestId('results-percentage')).toHaveText('25%');
+  await expect(page.getByTestId('results-band')).toHaveCount(0);
   await expect(page.getByTestId('review-L1-q2')).toContainText('Singular or plural mismatch');
   await expect(page.getByTestId('review-L1-q3')).toContainText('Blank answer');
   await expect(page.getByTestId('review-L1-q3')).toContainText('No answer');
