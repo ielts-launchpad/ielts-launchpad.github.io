@@ -396,7 +396,9 @@
 
 **Acceptance criteria:** Settings lets user paste Groq/Gemini key (IndexedDB only, never sent to our Worker); browser calls provider directly with shared prompts; Gemini sends audio for full Pronunciation; warning text (key stored locally, use spending limits, Google 18+); auto-fallback when Worker returns `DAILY_LIMIT` or is unavailable.
 
-**Tests:** Unit — adapter selection; key never included in Worker requests; fallback trigger logic. e2e (mocked) — own-key path renders results; warning shown.
+Store the user's own API key outside the exported tables (or exclude it explicitly); the export must never contain API keys. Add a test.
+
+**Tests:** Unit — adapter selection; key never included in Worker requests or exported backups (including partial exports with skipped records); fallback trigger logic. e2e (mocked) — own-key path renders results; warning shown.
 
 ### M6.9 Worker README & client config
 <!-- meta: id=M6.9; label=code; milestone=M6; depends=M6.1; assignee= -->

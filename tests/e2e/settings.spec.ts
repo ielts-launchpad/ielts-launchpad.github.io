@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { backupSchema, validateBackupRelations, type BackupData } from '../../src/engine/data/backup';
 import { en } from '../../src/i18n/en';
+import { format } from '../../src/i18n/format';
 import { expectNoA11yViolations } from './helpers/a11y';
 import { gotoListening, waitListeningSaved } from './helpers/listening';
 
@@ -18,40 +19,20 @@ async function saveFont(page: Page, scale: string): Promise<void> {
   await expect(page.getByTestId('settings-status')).toHaveText(copy.saved);
 }
 
-async function exportBackup(page: Page): Promise<BackupData> {
+async function exportBackup(page: Page, skippedRecords: { table: keyof typeof copy.tables; id: string | null }[] = []): Promise<BackupData> {
+  const status = skippedRecords.length === 0 ? copy.exportDone : format(copy.exportSkipped, {
+    n: skippedRecords.length,
+    records: skippedRecords.map((record) => format(copy.skippedRecord, {
+      table: copy.tables[record.table], id: record.id ?? copy.unknownRecord,
+    })).join(', '),
+  });
   const downloadPromise = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
   await page.getByTestId('settings-export').click();
   await expect(page.getByTestId('settings-status')).not.toHaveText(copy.busy);
   if (await page.getByTestId('settings-status').textContent() === copy.error) {
-    // Read-only diagnostics expose field paths, never answers, keys or values.
-    const paths = await page.evaluate(async () => {
-      const request = indexedDB.open('ielts-launchpad');
-      const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(new Error('Could not inspect test database'));
-      });
-      try {
-        const paths: string[] = [];
-        function inspect(value: unknown, path: string): void {
-          if (value === undefined) paths.push(path);
-          else if (value !== null && typeof value === 'object') {
-            for (const [key, child] of Object.entries(value)) inspect(child, `${path}.${key}`);
-          }
-        }
-        await Promise.all(Array.from(database.objectStoreNames).map(async (name) => {
-          const query = database.transaction(name).objectStore(name).getAll();
-          const records: unknown = await new Promise((resolve, reject) => {
-            query.onsuccess = () => resolve(query.result);
-            query.onerror = () => reject(new Error('Could not inspect test records'));
-          });
-          inspect(records, name);
-        }));
-        return paths;
-      } finally { database.close(); }
-    });
-    throw new Error(`Repository export failed; undefined field paths: ${paths.join(', ')}`);
+    throw new Error('Repository export failed');
   }
-  await expect(page.getByTestId('settings-status')).toHaveText(copy.exportDone);
+  await expect(page.getByTestId('settings-status')).toHaveText(status);
   const download = await downloadPromise;
   if (!download) throw new Error('Export did not produce a download');
   expect(download.suggestedFilename()).toBe('ielts-launchpad-backup.json');
@@ -59,8 +40,10 @@ async function exportBackup(page: Page): Promise<BackupData> {
   if (!path) throw new Error('Download did not produce a local file');
   const input: unknown = JSON.parse(await readFile(path, 'utf8'));
   const data = backupSchema.parse(input);
+  expect(data.skipped).toBe(skippedRecords.length);
+  expect(input).not.toHaveProperty('skippedRecords');
   validateBackupRelations(data);
-  await expect(page.getByTestId('settings-status')).toHaveText(copy.exportDone);
+  await expect(page.getByTestId('settings-status')).toHaveText(status);
   return data;
 }
 
@@ -195,6 +178,71 @@ test('incoming matching IDs win in every table while unrelated records are prese
   expect(after.attempts.find((record) => record.id === unrelated?.id)).toEqual(unrelated);
   expect(after.answers.find((record) => record.attemptId === unrelated?.id)).toEqual(
     before.answers.find((record) => record.attemptId === unrelated?.id));
+});
+
+test('partial export downloads valid records, reports only identities, leaves corruption untouched and imports into a clean database', async ({ page }) => {
+  const { data } = await populatedBackup(page);
+  const corruptId = '<img src=x onerror=alert(1)>-corrupt-setting';
+  const orphanId = 'orphan-answer';
+  await page.evaluate(async ({ corruptId, orphanId }) => {
+    const request = indexedDB.open('ielts-launchpad');
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(new Error('Could not seed test database'));
+    });
+    try {
+      const transaction = database.transaction(['settings', 'answers'], 'readwrite');
+      const done = new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(new Error('Could not seed test records'));
+        transaction.onabort = () => reject(new Error('Could not seed test records'));
+      });
+      transaction.objectStore('settings').put({ key: corruptId, value: { private: 'CORRUPT_VALUE_NOT_FOR_EXPORT', invalid: NaN } });
+      transaction.objectStore('answers').put({ attemptId: orphanId, answers: { private: 'ORPHAN_ANSWER_NOT_FOR_EXPORT' }, updatedAt: 1 });
+      await done;
+    } finally { database.close(); }
+  }, { corruptId, orphanId });
+  const exported = await exportBackup(page, [{ table: 'answers', id: orphanId }, { table: 'settings', id: corruptId }]);
+  expect(exported).toEqual({ ...data, skipped: 2 });
+  expect(JSON.stringify(exported)).not.toContain('CORRUPT_VALUE_NOT_FOR_EXPORT');
+  expect(JSON.stringify(exported)).not.toContain('ORPHAN_ANSWER_NOT_FOR_EXPORT');
+  expect(JSON.stringify(exported)).not.toContain('NaN');
+  await expect(page.getByTestId('settings-status').locator('img')).toHaveCount(0);
+  await expect(page.getByTestId('settings-status')).not.toContainText('CORRUPT_VALUE_NOT_FOR_EXPORT');
+  await expect(page.getByTestId('settings-status')).not.toContainText('ORPHAN_ANSWER_NOT_FOR_EXPORT');
+  const retained = await page.evaluate(async ({ corruptId, orphanId }) => {
+    const request = indexedDB.open('ielts-launchpad');
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(new Error('Could not inspect test database'));
+    });
+    function read<T>(query: IDBRequest<T>): Promise<T> {
+      return new Promise((resolve, reject) => {
+        query.onsuccess = () => resolve(query.result);
+        query.onerror = () => reject(new Error('Could not inspect test records'));
+      });
+    }
+    try {
+      const counts = await Promise.all(['attempts', 'answers', 'results', 'highlights', 'settings'].map((table) =>
+        read(database.transaction(table).objectStore(table).count())));
+      const setting = await read(database.transaction('settings').objectStore('settings').get(corruptId)) as
+        { value: { private: string; invalid: number } };
+      const answer = await read(database.transaction('answers').objectStore('answers').get(orphanId)) as
+        { answers: { private: string } };
+      return { counts, corruptUnchanged: Number.isNaN(setting.value.invalid) && setting.value.private === 'CORRUPT_VALUE_NOT_FOR_EXPORT',
+        orphanUnchanged: answer.answers.private === 'ORPHAN_ANSWER_NOT_FOR_EXPORT' };
+    } finally { database.close(); }
+  }, { corruptId, orphanId });
+  expect(retained).toEqual({ counts: tableNames.map((table) => data[table].length + (table === 'answers' || table === 'settings' ? 1 : 0)),
+    corruptUnchanged: true, orphanUnchanged: true });
+  // The actual repository must reject retained corruption, despite safe UI prevalidation.
+  await selectBackup(page, exported);
+  await page.getByTestId('settings-import').click();
+  await expect(page.getByTestId('settings-status')).toHaveText(copy.error);
+  expect(await exportBackup(page, [{ table: 'answers', id: orphanId }, { table: 'settings', id: corruptId }])).toEqual(exported);
+  await confirmDelete(page);
+  await importBackup(page, exported);
+  expect(await exportBackup(page)).toEqual(data);
 });
 
 test('malformed JSON, invalid schema and orphaned records leave every table unchanged', async ({ page }) => {

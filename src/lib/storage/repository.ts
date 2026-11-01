@@ -14,7 +14,7 @@ import type {
 } from './db';
 import type { AnswerMap } from '../../engine/runner/types';
 import type { UserResponse } from '../../engine/grading/grade';
-import { backupSchema, mergeBackupData, normalizeStoredBackup, validateBackupRelations, type BackupData } from '../../engine/data/backup';
+import { backupSchema, mergeBackupData, normalizeStoredBackup, prepareBackupExport, type BackupData, type BackupExportReport } from '../../engine/data/backup';
 
 export class RunnerRepository {
   constructor(private readonly db: RunnerDatabase = getDb()) {}
@@ -131,12 +131,15 @@ export class RunnerRepository {
 
   // --- data management -----------------------------------------------------
 
-  /** One read transaction gives every table the same point-in-time snapshot. */
-  exportData(): Promise<BackupData> {
+  /** Compatibility API: the file contains every valid record and the skipped count. */
+  async exportData(): Promise<BackupData> {
+    return (await this.exportDataWithReport()).data;
+  }
+
+  /** One read-only transaction gives all five tables a consistent salvage snapshot. */
+  exportDataWithReport(): Promise<BackupExportReport> {
     return this.db.transaction('r', this.db.tables, async () => {
-      const data = normalizeStoredBackup(await this.readData());
-      validateBackupRelations(data);
-      return data;
+      return prepareBackupExport(await this.readData());
     });
   }
 

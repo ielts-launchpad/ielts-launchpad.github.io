@@ -7,8 +7,8 @@ import { en } from '../../src/i18n/en';
 import { format } from '../../src/i18n/format';
 import { expectNoA11yViolations } from './helpers/a11y';
 
-async function openCatalog(page: Page) {
-  await page.goto('/tests');
+async function openCatalog(page: Page, url = '/tests') {
+  await page.goto(url);
   await expect(page.locator('astro-island[component-export="TestCatalog"]')).not.toHaveAttribute('ssr', '');
   await expect(page.getByTestId('test-catalog')).toBeVisible();
 }
@@ -25,7 +25,7 @@ function serializeFixture(value: unknown): unknown {
 }
 
 async function mockCatalog(page: Page, cards: CatalogCard[], includeDrafts = true) {
-  await page.route('**/tests', async (route) => {
+  await page.route((url) => url.pathname === '/tests', async (route) => {
     const response = await route.fetch();
     const html = await response.text();
     const props = JSON.stringify({ cards: serializeFixture(cards), includeDrafts: serializeFixture(includeDrafts) })
@@ -115,6 +115,56 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 360, height: 800 
       await expect(page.getByTestId('catalog-empty')).toHaveText(en.catalog.emptyPublished);
       await expect(page.getByTestId('catalog-draft')).toHaveCount(0);
       await expectNoA11yViolations(page);
+    });
+
+    test('skill query initializes matching metadata only, with keyboard-operable filters', async ({ page }) => {
+      await mockCatalog(page, [
+        { id: 'reading-only', title: 'Reading-only metadata', kind: 'practice', isDraft: false,
+          skills: [{ skill: 'reading', href: '/test/sample-01/reading' }] },
+        { id: 'writing-only', title: 'Writing-only metadata', kind: 'practice', isDraft: false,
+          skills: [{ skill: 'writing', href: null }] },
+        { id: 'speaking-only', title: 'Speaking-only metadata', kind: 'practice', isDraft: false,
+          skills: [{ skill: 'speaking', href: null }] },
+      ]);
+      for (const skill of ['reading', 'writing', 'speaking'] as const) {
+        await openCatalog(page, `/tests?skill=${skill}`);
+        const select = page.getByLabel(en.catalog.skill, { exact: true });
+        await expect(select).toHaveValue(skill);
+        await expect(page.getByLabel(en.catalog.kind, { exact: true })).toHaveValue('all');
+        await expect(page.getByTestId('catalog-card')).toHaveCount(1);
+        await expect(page.getByRole('article', { name: `${en.catalog.skills[skill]}-only metadata` })).toBeVisible();
+        if (skill !== 'reading') {
+          await expect(page.getByTestId('catalog-card')).toContainText(format(en.catalog.comingSoon, { skill: en.catalog.skills[skill] }));
+          await expect(page.getByTestId('catalog-card').getByRole('link')).toHaveCount(0);
+        }
+        await select.focus();
+        await expect(select).toBeFocused();
+        await page.keyboard.press('Home');
+        await page.keyboard.press('Enter');
+        await expect(select).toHaveValue('all');
+        await expect(page.getByTestId('catalog-card')).toHaveCount(3);
+        await expectNoA11yViolations(page);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      }
+    });
+
+    test('invalid skill query is ignored rather than hiding the default catalog', async ({ page }) => {
+      for (const query of ['invalid', 'Reading', '', 'writing%2Cspeaking']) {
+        await openCatalog(page, `/tests?skill=${query}`);
+        await expect(page.getByLabel(en.catalog.skill, { exact: true })).toHaveValue('all');
+        await expect(page.getByRole('article', { name: 'Sample Practice 1' })).toBeVisible();
+      }
+      await expectNoA11yViolations(page);
+    });
+
+    test('Reading/Listening query filters initialize real sample runner links', async ({ page }) => {
+      for (const skill of ['reading', 'listening'] as const) {
+        await openCatalog(page, `/tests?skill=${skill}`);
+        await expect(page.getByLabel(en.catalog.skill, { exact: true })).toHaveValue(skill);
+        const sample = page.getByRole('article', { name: 'Sample Practice 1' });
+        await expect(sample.getByRole('link')).toHaveCount(1);
+        await expect(sample.getByRole('link')).toHaveAttribute('href', `/test/sample-01/${skill}`);
+      }
     });
   });
 }

@@ -1,17 +1,27 @@
 import { expect, test, type Page } from '@playwright/test';
 import { join } from 'node:path';
 import { backupSchema, validateBackupRelations } from '../../src/engine/data/backup';
-import { questionGroupSchema, type QuestionGroup } from '../../src/engine/content/schema';
+import { questionGroupSchema, type QuestionGroup, type Skill } from '../../src/engine/content/schema';
 import { gradeQuestion } from '../../src/engine/grading/grade';
 import { loadTips } from '../../src/engine/content/tips-loader';
 import type { ResultRecord } from '../../src/lib/storage/db';
 import { en } from '../../src/i18n/en';
+import { format } from '../../src/i18n/format';
 import { expectNoA11yViolations } from './helpers/a11y';
 import { gotoListening, waitListeningSaved } from './helpers/listening';
 
 const copy = en.dashboard;
 const tips = loadTips(join(process.cwd(), 'content/tips.yaml'));
 const time = (day: number): number => Date.UTC(2026, 9, day, 12);
+
+async function expectOverallNeeds(page: Page, skills: Skill[]): Promise<void> {
+  const needs = page.getByTestId('dashboard-overall-needs');
+  await expect(needs).toHaveText(format(copy.overallNeeds, { skills: skills.map((skill) => en.catalog.skills[skill]).join(', ') }));
+  await expect(needs.getByRole('link')).toHaveCount(skills.length);
+  for (const skill of skills) {
+    await expect(needs.getByRole('link', { name: en.catalog.skills[skill], exact: true })).toHaveAttribute('href', `/tests?skill=${skill}`);
+  }
+}
 
 /** Test-only saved snapshots, graded from their own valid question definitions. */
 function snapshot(id: string, skill: ResultRecord['skill'], day: number, groups: QuestionGroup[], answers: Record<string, string | string[] | null>): ResultRecord {
@@ -96,6 +106,11 @@ test('dashboard empty state links to Tests and is accessible without cookies', a
   expect(response?.status()).toBe(200);
   await expect(page.getByTestId('dashboard-status')).toHaveText(copy.empty);
   await expect(page.getByTestId('dashboard-data')).toHaveCount(0);
+  await expectOverallNeeds(page, ['reading', 'listening', 'writing', 'speaking']);
+  const needs = page.getByTestId('dashboard-overall-needs');
+  await needs.getByRole('link', { name: en.catalog.skills.reading, exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(needs.getByRole('link', { name: en.catalog.skills.listening, exact: true })).toBeFocused();
   const link = page.getByRole('link', { name: copy.testsLink });
   await expect(link).toHaveAttribute('href', '/tests');
   await link.focus();
@@ -116,6 +131,7 @@ test('real partial sample submission supplies accuracy, errors and original tips
   await expect(page.getByTestId('dashboard-data')).toBeVisible();
   await expect(page.getByTestId('current-listening')).toHaveText(copy.missing);
   await expect(page.getByTestId('current-overall')).toHaveText(copy.missing);
+  await expectOverallNeeds(page, ['reading', 'listening', 'writing', 'speaking']);
   await expect(page.getByText(copy.noHistory)).toBeVisible();
   await expect(page.getByTestId('error-blank').locator('td')).toHaveText('3');
   await expect(page.locator('[data-testid^="accuracy-"]')).not.toHaveCount(0);
@@ -134,6 +150,21 @@ test('real partial sample submission supplies accuracy, errors and original tips
 for (const width of [1280, 360]) {
   test.describe(`dashboard ${width}px`, () => {
     test.use({ viewport: { width, height: 900 } });
+    test('empty dashboard names all four missing skills in keyboard order without overflow', async ({ page }) => {
+      await page.goto('/dashboard');
+      await expect(page.getByTestId('dashboard-status')).toHaveText(copy.empty);
+      const skills: Skill[] = ['reading', 'listening', 'writing', 'speaking'];
+      await expectOverallNeeds(page, skills);
+      const links = page.getByTestId('dashboard-overall-needs').getByRole('link');
+      await links.first().focus();
+      for (let index = 0; index < skills.length; index += 1) {
+        await expect(links.nth(index)).toBeFocused();
+        if (index < skills.length - 1) await page.keyboard.press('Tab');
+      }
+      await expectNoA11yViolations(page);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    });
+
     test('saved bands, chronological chart/table, weighted accuracy and weakest-three tips', async ({ page, context }) => {
       const externalRequests: string[] = [];
       page.on('request', (request) => {
@@ -143,6 +174,11 @@ for (const width of [1280, 360]) {
       await expect(page.getByTestId('current-reading')).toHaveText('8');
       await expect(page.getByTestId('current-listening')).toHaveText('7.5');
       for (const skill of ['writing', 'speaking', 'overall']) await expect(page.getByTestId(`current-${skill}`)).toHaveText(copy.missing);
+      await expectOverallNeeds(page, ['writing', 'speaking']);
+      const needs = page.getByTestId('dashboard-overall-needs');
+      await needs.getByRole('link', { name: en.catalog.skills.writing, exact: true }).focus();
+      await page.keyboard.press('Tab');
+      await expect(needs.getByRole('link', { name: en.catalog.skills.speaking, exact: true })).toBeFocused();
       await expect(page.getByText(copy.fullOnly)).toBeVisible();
       await expect(page.getByText(copy.disclaimer)).toBeVisible();
       const rows = page.getByTestId('history-row');
@@ -182,6 +218,22 @@ for (const width of [1280, 360]) {
       await page.reload();
       await expect(page.getByTestId('current-reading')).toHaveText('8');
       await expect(page.getByTestId('history-row')).toHaveCount(3);
+      await expectOverallNeeds(page, ['writing', 'speaking']);
+      for (const skill of ['writing', 'speaking'] as const) {
+        if (skill === 'speaking') {
+          await page.goto('/dashboard');
+          await expectOverallNeeds(page, ['writing', 'speaking']);
+        }
+        const link = page.getByTestId('dashboard-overall-needs').getByRole('link', { name: en.catalog.skills[skill], exact: true });
+        await link.focus();
+        await link.press('Enter');
+        await expect(page).toHaveURL(`/tests?skill=${skill}`);
+        await expect(page.getByLabel(en.catalog.skill, { exact: true })).toHaveValue(skill);
+        await expect(page.getByTestId('catalog-empty')).toHaveText(en.catalog.empty);
+        await expect(page.locator('a[href$="/writing"], a[href$="/speaking"]')).toHaveCount(0);
+        await expectNoA11yViolations(page);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      }
     });
   });
 }
@@ -192,10 +244,31 @@ test('reviewless legacy records contribute missed marks but never bands or quest
   await seed(page, [legacy]);
   await expect(page.getByTestId('dashboard-legacy')).toHaveText(copy.legacy);
   await expect(page.getByTestId('current-reading')).toHaveText(copy.missing);
+  await expectOverallNeeds(page, ['reading', 'listening', 'writing', 'speaking']);
   await expect(page.getByText(copy.noHistory)).toBeVisible();
   await expect(page.getByText(copy.noAccuracy)).toBeVisible();
   await expect(page.getByText(copy.noWeaknesses)).toBeVisible();
   await expect(page.getByTestId('error-blank').locator('td')).toHaveText('40');
+  await expectNoA11yViolations(page);
+});
+
+test('newer partial and legacy results leave both eligible skill bands present', async ({ page }) => {
+  const legacy = full('newer-legacy', 'listening', 25, 40);
+  delete legacy.review;
+  await seed(page, [full('eligible-reading', 'reading', 21, 35), full('eligible-listening', 'listening', 22, 32), partial(), legacy]);
+  await expect(page.getByTestId('current-reading')).toHaveText('8');
+  await expect(page.getByTestId('current-listening')).toHaveText('7.5');
+  await expect(page.getByTestId('current-overall')).toHaveText(copy.missing);
+  await expectOverallNeeds(page, ['writing', 'speaking']);
+  await expect(page.getByTestId('dashboard-legacy')).toHaveText(copy.legacy);
+  await expectNoA11yViolations(page);
+});
+
+test('an eligible zero band is present while the other three skills remain missing', async ({ page }) => {
+  await seed(page, [full('zero-reading', 'reading', 21, 0)]);
+  await expect(page.getByTestId('current-reading')).toHaveText('0');
+  await expect(page.getByTestId('current-overall')).toHaveText(copy.missing);
+  await expectOverallNeeds(page, ['listening', 'writing', 'speaking']);
   await expectNoA11yViolations(page);
 });
 

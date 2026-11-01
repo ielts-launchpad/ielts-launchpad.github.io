@@ -1,7 +1,6 @@
 /** Versioned, browser-independent validation for all current storage tables. */
 import { z } from 'zod';
-import { gradeQuestion } from '../grading/grade';
-import { isMultiQuestion, questionGroupSchema } from '../content/schema';
+import { isMultiQuestion, multiQuestionSchema, questionGroupSchema, standardQuestionSchema } from '../content/schema';
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 const safeNumber = z.number().finite().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER);
@@ -26,6 +25,7 @@ function isJsonValue(value: unknown, ancestors = new Set<object>(), omitUndefine
   const valid = Reflect.ownKeys(value).every((key) => {
     if (Array.isArray(value) && key === 'length') return true;
     if (typeof key !== 'string' || key === '__proto__') return false;
+    if (Array.isArray(value) && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length)) return false;
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     return descriptor?.enumerable === true && 'value' in descriptor &&
       ((omitUndefinedProperties && !Array.isArray(value) && descriptor.value === undefined) ||
@@ -54,19 +54,24 @@ const questionResultSchema = z.object({
   questionId: id, numbers: z.array(positiveCount).min(1), marks: count, maxMarks: positiveCount,
   correct: z.boolean(), errorClass: z.enum(['blank', 'over-limit', 'plural', 'spelling', 'wrong']).nullable(),
 }).strict().superRefine((result, ctx) => {
-  if (result.marks > result.maxMarks || result.maxMarks !== result.numbers.length ||
-      new Set(result.numbers).size !== result.numbers.length ||
-      result.correct !== (result.marks === result.maxMarks) ||
-      (result.errorClass === null) !== result.correct) {
-    ctx.addIssue({ code: 'custom', message: 'Inconsistent question marks, numbers or classification' });
+  if (result.marks > result.maxMarks || new Set(result.numbers).size !== result.numbers.length) {
+    ctx.addIssue({ code: 'custom', message: 'Inconsistent question marks or numbers' });
   }
 });
 
+// Historical content must not pass today's interaction/content superRefine rules.
+const historicalGroupSchema = questionGroupSchema.innerType().extend({
+  id,
+  imageAlt: z.string().min(1).optional(), // Do not trim a historical snapshot's text.
+  questions: z.array(z.union([
+    standardQuestionSchema.extend({ id }), multiQuestionSchema.extend({ id }),
+  ])).min(1),
+});
 const reviewSchema = z.object({
   answers, variant: z.enum(['academic', 'general']), kind: z.enum(['mock', 'practice']),
   sections: z.array(z.object({
     number: positiveCount, title: z.string(), text: z.string(),
-    groups: z.array(questionGroupSchema), audio: z.string().min(1).optional(),
+    groups: z.array(historicalGroupSchema), audio: z.string().min(1).optional(),
   }).strict()),
 }).strict();
 
@@ -91,36 +96,19 @@ const resultSchema = z.object({
   const groupIds = groups.map((group) => group.id);
   const questions = groups.flatMap((group) => group.questions);
   const snapshotIds = questions.map((question) => question.id);
+  const snapshotNumbers = questions.flatMap((question) => isMultiQuestion(question) ? question.numbers : [question.number]);
   if (new Set(sectionNumbers).size !== sectionNumbers.length || new Set(groupIds).size !== groupIds.length ||
+      new Set(snapshotNumbers).size !== snapshotNumbers.length ||
       new Set(snapshotIds).size !== snapshotIds.length || snapshotIds.length !== questionIds.length ||
       snapshotIds.some((questionId) => !questionIds.includes(questionId)) ||
       Object.keys(result.review.answers).some((questionId) => !snapshotIds.includes(questionId))) {
     fail('Review must identify each graded question exactly once');
   }
-  const grades = new Map(result.results.map((item) => [item.questionId, item]));
-  for (const group of groups) {
-    for (const question of group.questions) {
-      const expected = gradeQuestion(group, question, result.review.answers[question.id] ?? null);
-      const actual = grades.get(question.id);
-      if (!actual || expected.marks !== actual.marks || expected.maxMarks !== actual.maxMarks ||
-          expected.errorClass !== actual.errorClass ||
-          expected.numbers.join(',') !== actual.numbers.join(',')) {
-        fail('Review answers and question definitions must match saved grading');
-      }
-      if (isMultiQuestion(question) && (question.n !== question.numbers.length ||
-          question.answers.length !== question.n || new Set(question.answers).size !== question.answers.length)) {
-        fail('Inconsistent multi-question definition');
-      }
-      const options = group.options;
-      if (options && question.answers.some((answer) => !Object.hasOwn(options, answer))) {
-        fail('Accepted option is missing from the review');
-      }
-    }
-  }
 });
 
-const tablesSchema = z.object({
+const tableObjectsSchema = z.object({
   version: z.literal(1),
+  skipped: count.default(0),
   attempts: z.array(attemptSchema),
   answers: z.array(z.object({ attemptId: id, answers, updatedAt: timestamp }).strict()),
   results: z.array(resultSchema),
@@ -129,7 +117,8 @@ const tablesSchema = z.object({
     start: count, end: count, quote: z.string(), note: z.string(), createdAt: timestamp,
   }).strict().refine((highlight) => highlight.end > highlight.start, 'Highlight end must follow start')),
   settings: z.array(z.object({ key: id, value: jsonValue }).strict()),
-}).strict().superRefine((data, ctx) => {
+}).strict();
+const tablesSchema = tableObjectsSchema.superRefine((data, ctx) => {
   const keys = {
     attempts: data.attempts.map((record) => record.id),
     answers: data.answers.map((record) => record.attemptId),
@@ -158,6 +147,58 @@ export const backupSchema = z.unknown().superRefine((input, ctx) => {
 
 export type BackupData = z.infer<typeof backupSchema>;
 
+export type BackupTable = 'attempts' | 'answers' | 'results' | 'highlights' | 'settings';
+export type SkippedBackupRecord = { table: BackupTable; id: string | null };
+export type BackupExportReport = { data: BackupData; skippedRecords: SkippedBackupRecord[] };
+export type StoredBackupTables = { readonly [Table in BackupTable]: readonly unknown[] };
+
+/** Diagnostics contain only the table and an own, data-property primary ID. */
+function storedId(record: unknown, key: string): string | null {
+  if (record === null || typeof record !== 'object') return null;
+  const descriptor = Object.getOwnPropertyDescriptor(record, key);
+  return descriptor && 'value' in descriptor && typeof descriptor.value === 'string' && descriptor.value.trim()
+    ? descriptor.value : null;
+}
+
+/** Salvage each record independently, first valid primary ID wins. Never write to storage. */
+export function prepareBackupExport(tables: StoredBackupTables): BackupExportReport {
+  const skippedRecords: SkippedBackupRecord[] = [];
+  function collect<T>(table: BackupTable, key: string, schema: z.ZodType<T>, accepts: (record: T) => boolean = () => true): T[] {
+    const records: T[] = [];
+    const seen = new Set<string>();
+    for (const record of tables[table]) {
+      let primaryId: string | null = null;
+      try {
+        primaryId = storedId(record, key);
+        if (!isJsonValue(record, new Set(), table !== 'settings')) throw new Error('Unsafe record');
+        // Check before omission too: undefined is only permitted for known optional fields.
+        schema.parse(record);
+        const normalized: unknown = JSON.parse(JSON.stringify(record));
+        const parsed = schema.parse(normalized);
+        if (primaryId === null || seen.has(primaryId) || !accepts(parsed)) throw new Error('Invalid record');
+        seen.add(primaryId);
+        records.push(parsed);
+      } catch {
+        skippedRecords.push({ table, id: primaryId });
+      }
+    }
+    return records;
+  }
+  const shape = tableObjectsSchema.shape;
+  const attempts = collect('attempts', 'id', shape.attempts.element);
+  const parents = new Map(attempts.map((attempt) => [attempt.id, attempt]));
+  const answers = collect('answers', 'attemptId', shape.answers.element, (record) => parents.has(record.attemptId));
+  const results = collect('results', 'attemptId', shape.results.element, (record) => {
+    const parent = parents.get(record.attemptId);
+    return parent?.testId === record.testId && parent.skill === record.skill;
+  });
+  const highlights = collect('highlights', 'id', shape.highlights.element, (record) => parents.has(record.attemptId));
+  const settings = collect('settings', 'key', shape.settings.element);
+  const data = backupSchema.parse({ version: 1, attempts, answers, results, highlights, settings, skipped: skippedRecords.length });
+  validateBackupRelations(data);
+  return { data, skippedRecords };
+}
+
 /** IndexedDB keeps optional undefined fields; JSON correctly omits those object properties. */
 export function normalizeStoredBackup(input: unknown): BackupData {
   if (!isJsonValue(input, new Set(), true)) throw new Error('Stored data contains unsafe JSON values');
@@ -166,6 +207,9 @@ export function normalizeStoredBackup(input: unknown): BackupData {
   const settings = input !== null && typeof input === 'object'
     ? Object.getOwnPropertyDescriptor(input, 'settings')?.value as unknown : undefined;
   if (!isJsonValue(settings)) throw new Error('Stored settings contain unsafe JSON values');
+  // Validate raw records before omitting undefined: unknown/required fields must
+  // not disappear and turn corrupt retained state into a plausible import base.
+  tableObjectsSchema.parse(input);
   const normalized: unknown = JSON.parse(JSON.stringify(input));
   return backupSchema.parse(normalized);
 }

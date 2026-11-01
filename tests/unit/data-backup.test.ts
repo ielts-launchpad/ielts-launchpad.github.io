@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { backupSchema, type BackupData } from '../../src/engine/data/backup';
+import { backupSchema, prepareBackupExport, type BackupData, type StoredBackupTables } from '../../src/engine/data/backup';
+import { gradeQuestion } from '../../src/engine/grading/grade';
 import { RunnerDatabase } from '../../src/lib/storage/db';
 import { RunnerRepository } from '../../src/lib/storage/repository';
 
@@ -18,12 +19,13 @@ afterEach(async () => {
 });
 
 function empty(): BackupData {
-  return { version: 1, attempts: [], answers: [], results: [], highlights: [], settings: [] };
+  return { version: 1, skipped: 0, attempts: [], answers: [], results: [], highlights: [], settings: [] };
 }
 
 function sample(id = 'a1', text = 'gate'): BackupData {
   return {
     version: 1,
+    skipped: 0,
     attempts: [{
       id, testId: 'sample-01', skill: 'listening', mode: 'practice', status: 'submitted',
       startedAt: 100, updatedAt: 200, submittedAt: 200, timerStartedAt: 100,
@@ -66,12 +68,14 @@ describe('versioned data backups', () => {
     ['undefined', undefined], ['nested undefined', { nested: undefined }],
     ['undefined array item', [undefined]], ['NaN', { nested: NaN }], ['Infinity', [Infinity]],
   ];
-  it.each(corruptSettings)('never silently normalizes a stored %s setting on export or import', async (_label, value) => {
+  it.each(corruptSettings)('skips a stored %s setting on export but strictly rejects it on import', async (_label, value) => {
     const { db, repo } = fresh();
     await repo.importData(sample());
     await repo.setSetting('corrupt-setting', value);
     const write = vi.spyOn(db.attempts, 'bulkPut');
-    await expect(repo.exportData()).rejects.toThrow();
+    const report = await repo.exportDataWithReport();
+    expect(report).toEqual({ data: { ...sample(), skipped: 1 }, skippedRecords: [{ table: 'settings', id: 'corrupt-setting' }] });
+    expect(await repo.exportData()).toEqual(report.data);
     await expect(repo.importData(empty())).rejects.toThrow();
     expect(write).not.toHaveBeenCalled();
     expect(await repo.getSetting('corrupt-setting', null)).toEqual(value);
@@ -167,9 +171,19 @@ describe('versioned data backups', () => {
     ['nonfinite position', (data) => { data.attempts[0].listening = { phase: 'ready', partIndex: 0, position: Infinity, reviewStartedAt: null }; return data; }],
     ['negative marks', (data) => { data.results[0].raw = -1; return data; }],
     ['inconsistent totals', (data) => { data.results[0].max = 2; return data; }],
-    ['inconsistent question classification', (data) => { data.results[0].results[0].correct = false; return data; }],
+    ['invalid historical classification type', (data) => ({ ...data, results: [{ ...data.results[0], results: [{ ...data.results[0].results[0], correct: 'false' }] }] })],
+    ['invalid historical error enum', (data) => ({ ...data, results: [{ ...data.results[0], results: [{ ...data.results[0].results[0], errorClass: 'obsolete-unknown' }] }] })],
     ['duplicate question numbers', (data) => { data.results[0].results[0].numbers = [1, 1]; return data; }],
-    ['incorrect snapshot grading', (data) => { if (data.results[0].review) data.results[0].review.answers = { q1: 'wrong' }; return data; }],
+    ['duplicate question IDs', (data) => { data.results[0].results.push({ ...data.results[0].results[0], numbers: [2] }); data.results[0].raw = 2; data.results[0].max = 2; return data; }],
+    ['blank review group ID', (data) => { const group = data.results[0].review?.sections[0].groups[0]; if (group) group.id = ' '; return data; }],
+    ['unknown review answer ID', (data) => { if (data.results[0].review) data.results[0].review.answers.unknown = 'private'; return data; }],
+    ['duplicate review numbers', (data) => {
+      const group = data.results[0].review?.sections[0].groups[0];
+      if (group) group.questions.push({ ...group.questions[0], id: 'q2' });
+      data.results[0].results.push({ ...data.results[0].results[0], questionId: 'q2', numbers: [2] });
+      data.results[0].raw = 2; data.results[0].max = 2;
+      return data;
+    }],
     ['missing snapshot question', (data) => { if (data.results[0].review) data.results[0].review.sections = []; return data; }],
     ['duplicate snapshot section', (data) => { if (data.results[0].review) data.results[0].review.sections.push(data.results[0].review.sections[0]); return data; }],
     ['unsafe nested evidence', (data) => { const question = data.results[0].review?.sections[0].groups[0].questions[0]; if (question?.evidence) question.evidence.audioStart = Number.MAX_SAFE_INTEGER + 1; return data; }],
@@ -186,6 +200,95 @@ describe('versioned data backups', () => {
     ['inconsistent result skill', (data) => { data.results[0].skill = 'reading'; return data; }],
   ];
 
+  it.each([0, 1])('preserves historical marks %i even when current grading disagrees through export/import/re-export', async (marks) => {
+    const source = fresh();
+    const target = fresh();
+    const data = sample();
+    const result = data.results[0];
+    const review = result.review;
+    if (!review) throw new Error('Missing review fixture');
+    review.answers.q1 = marks === 0 ? 'gate' : 'wrong';
+    result.raw = marks;
+    result.results[0] = { ...result.results[0], marks, correct: marks === 1, errorClass: marks === 1 ? null : 'wrong' };
+    const group = review.sections[0].groups[0];
+    const current = gradeQuestion(group, group.questions[0], review.answers.q1);
+    expect(current.marks).toBe(1 - marks);
+    expect(current.errorClass).not.toBe(result.results[0].errorClass);
+    expect(backupSchema.parse(data)).toEqual(data);
+    // Seed raw saved history, not a value regenerated by the validator.
+    await source.db.attempts.bulkPut(data.attempts);
+    await source.db.answers.bulkPut(data.answers);
+    await source.db.results.bulkPut(data.results);
+    await source.db.highlights.bulkPut(data.highlights);
+    await source.db.settings.bulkPut(data.settings);
+    const exported = await source.repo.exportData();
+    expect(exported).toEqual(data);
+    await target.repo.importData(JSON.parse(JSON.stringify(exported)));
+    expect(await target.repo.getResult('a1')).toEqual(result);
+    expect(await target.repo.exportData()).toEqual(exported);
+  });
+
+  it('treats correct and errorClass as typed historical fields, not derived rules', () => {
+    const data = sample();
+    data.results[0].results[0].correct = false;
+    data.results[0].results[0].errorClass = 'blank';
+    expect(backupSchema.parse(data)).toEqual(data);
+  });
+
+  it('preserves historic mark weights rather than assuming the current one-mark grading rule', async () => {
+    const source = fresh();
+    const target = fresh();
+    const data = sample();
+    const result = data.results[0];
+    const group = result.review?.sections[0].groups[0];
+    if (!group) throw new Error('Missing group fixture');
+    expect(gradeQuestion(group, group.questions[0], 'gate').maxMarks).toBe(1);
+    result.raw = 2;
+    result.max = 2;
+    result.results[0].marks = 2;
+    result.results[0].maxMarks = 2;
+    await source.repo.importData(data);
+    const exported = await source.repo.exportData();
+    expect(exported).toEqual(data);
+    await target.repo.importData(exported);
+    expect(await target.repo.exportData()).toEqual(data);
+  });
+
+  it('preserves structural historic content that fails current group semantics', async () => {
+    const { repo } = fresh();
+    const data = sample();
+    const group = data.results[0].review?.sections[0].groups[0];
+    if (!group) throw new Error('Missing group fixture');
+    group.interaction = 'single';
+    group.options = { A: 'Historic option' }; // Saved accepted answer is no longer an option.
+    group.image = '/images/historic.svg'; // Old content did not require imageAlt.
+    await repo.importData(data);
+    expect(await repo.exportData()).toEqual(data);
+  });
+
+  it('does not trim historical snapshot text during a backup round trip', async () => {
+    const { repo } = fresh();
+    const data = sample();
+    const group = data.results[0].review?.sections[0].groups[0];
+    if (!group) throw new Error('Missing group fixture');
+    group.imageAlt = '  Historic description  ';
+    await repo.importData(data);
+    expect(await repo.exportData()).toEqual(data);
+  });
+
+  it('accepts legacy envelopes without skipped and nonnegative integer counts', () => {
+    const legacy: Record<string, unknown> = { ...sample() };
+    delete legacy.skipped;
+    expect(backupSchema.parse(legacy)).toEqual(sample());
+    expect(backupSchema.parse({ ...legacy, skipped: 7 }).skipped).toBe(7);
+  });
+
+  it.each([-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '1', null, undefined])(
+    'rejects malformed explicit skipped count %s', (skipped) => {
+      expect(backupSchema.safeParse({ ...sample(), skipped }).success).toBe(false);
+    },
+  );
+
   it.each(invalidCases)('rejects %s before writes, leaving every table unchanged', async (_name, mutate) => {
     const { db, repo } = fresh();
     await repo.importData(sample('retained'));
@@ -194,6 +297,134 @@ describe('versioned data backups', () => {
     await expect(repo.importData(mutate(sample()))).rejects.toThrow();
     expect(write).not.toHaveBeenCalled();
     expect(await repo.exportData()).toEqual(before);
+  });
+
+  it.each(['attempts', 'answers', 'results', 'highlights', 'settings'] as const)(
+    'salvages valid %s records and deterministically counts duplicate IDs', (table) => {
+      const data = sample();
+      const report = prepareBackupExport({ ...data, [table]: [...data[table], data[table][0]] });
+      expect(report.data).toEqual({ ...data, skipped: 1 });
+      expect(report.skippedRecords).toEqual([{ table, id: table === 'settings' ? 'fontScale' : table === 'highlights' ? 'h-a1' : 'a1' }]);
+    },
+  );
+
+  it('exports a valid empty envelope when every stored record is invalid', () => {
+    const tables = { attempts: [null], answers: [{}], results: [{ attemptId: 'broken' }], highlights: [false], settings: [{ key: 'bad', value: NaN }] };
+    const report = prepareBackupExport(tables);
+    expect(report.data).toEqual({ ...empty(), skipped: 5 });
+    expect(report.skippedRecords).toEqual([
+      { table: 'attempts', id: null }, { table: 'answers', id: null }, { table: 'results', id: 'broken' },
+      { table: 'highlights', id: null }, { table: 'settings', id: 'bad' },
+    ]);
+    expect(backupSchema.parse(JSON.parse(JSON.stringify(report.data)))).toEqual(report.data);
+  });
+
+  it('counts invalid parent and all dependent children while preserving unrelated records', () => {
+    const data = sample();
+    const unrelated = sample('unrelated');
+    const tables: StoredBackupTables = {
+      attempts: [{ ...data.attempts[0], updatedAt: NaN }, ...unrelated.attempts],
+      answers: [...data.answers, ...unrelated.answers, { attemptId: 'orphan', answers: {}, updatedAt: 1 }],
+      results: [...data.results, ...unrelated.results],
+      highlights: [...data.highlights, ...unrelated.highlights],
+      settings: unrelated.settings,
+    };
+    expect(prepareBackupExport(tables)).toEqual({
+      data: { ...unrelated, skipped: 5 },
+      skippedRecords: [
+        { table: 'attempts', id: 'a1' }, { table: 'answers', id: 'a1' }, { table: 'answers', id: 'orphan' },
+        { table: 'results', id: 'a1' }, { table: 'highlights', id: 'h-a1' },
+      ],
+    });
+  });
+
+  it.each([
+    ['malformed result', { attemptId: 'a1' }],
+    ['invalid totals', { ...sample().results[0], raw: 0 }],
+    ['mismatched test', { ...sample().results[0], testId: 'other' }],
+    ['mismatched skill', { ...sample().results[0], skill: 'reading' }],
+    ['orphan result', { ...sample().results[0], attemptId: 'orphan' }],
+  ])('only skips the %s, not its valid parent or siblings', (_label, result) => {
+    const data = sample();
+    const report = prepareBackupExport({ ...data, results: [result] });
+    expect(report.data).toEqual({ ...data, results: [], skipped: 1 });
+    expect(report.skippedRecords).toEqual([{ table: 'results', id: result.attemptId }]);
+  });
+
+  const cyclic: Record<string, unknown> = {};
+  cyclic.self = cyclic;
+  const sparse: unknown[] = new Array(2);
+  sparse[1] = 'private';
+  const throwingGetter = vi.fn(() => { throw new Error('Private getter detail'); });
+  const accessor = Object.defineProperty({}, 'secret', { enumerable: true, get: throwingGetter });
+  const unsafeValues: [string, unknown][] = [
+    ['NaN', NaN], ['Infinity', Infinity], ['unsafe number', Number.MAX_SAFE_INTEGER + 1],
+    ['sparse array', sparse], ['cycle', cyclic], ['class', new Date()], ['accessor', accessor],
+    ['undefined array item', [undefined]], ['nested undefined', { secret: undefined }],
+    ['function', () => 'private'], ['symbol', Symbol('private')],
+  ];
+  it.each(unsafeValues)('skips one unsafe %s setting without leaking values or invoking accessors', (_label, value) => {
+    const data = sample();
+    const report = prepareBackupExport({ ...data, settings: [...data.settings, { key: 'unsafe-setting', value }] });
+    expect(report).toEqual({ data: { ...data, skipped: 1 }, skippedRecords: [{ table: 'settings', id: 'unsafe-setting' }] });
+    expect(throwingGetter).not.toHaveBeenCalled();
+    expect(JSON.stringify(report)).not.toContain('private');
+  });
+
+  it('does not invoke a throwing primary-ID getter and reports a null identifier', () => {
+    const getter = vi.fn(() => { throw new Error('Private ID error'); });
+    const record = Object.defineProperty({}, 'id', { enumerable: true, get: getter });
+    expect(prepareBackupExport({ ...empty(), attempts: [record] })).toEqual({
+      data: { ...empty(), skipped: 1 }, skippedRecords: [{ table: 'attempts', id: null }],
+    });
+    expect(getter).not.toHaveBeenCalled();
+  });
+
+  it.each(['attempts', 'answers', 'results', 'highlights'] as const)(
+    'skips unsafe nested %s values before JSON can normalize them', (table) => {
+      const data = sample();
+      const record = { ...data[table][0], privateExtra: [undefined] };
+      const report = prepareBackupExport({ ...data, [table]: [record] });
+      expect(report.skippedRecords.some((item) => item.table === table)).toBe(true);
+      expect(report.data[table]).toEqual([]);
+      expect(JSON.stringify(report)).not.toContain('privateExtra');
+    },
+  );
+
+  it('invalid records do not reserve IDs before a later valid record is salvaged', () => {
+    const data = sample();
+    const report = prepareBackupExport({ ...data, attempts: [{ id: 'a1' }, ...data.attempts] });
+    expect(report.data).toEqual({ ...data, skipped: 1 });
+    expect(report.skippedRecords).toEqual([{ table: 'attempts', id: 'a1' }]);
+  });
+
+  it('salvage is read-only and its downloaded subset imports into a clean database', async () => {
+    const source = fresh();
+    const target = fresh();
+    await source.repo.importData(sample());
+    await source.repo.setSetting('bad-setting', { secret: NaN });
+    await source.db.answers.put({ attemptId: 'orphan', answers: { secret: 'private answer' }, updatedAt: 1 });
+    const before = await Promise.all(source.db.tables.map((table) => table.toArray()));
+    const report = await source.repo.exportDataWithReport();
+    expect(report.data).toEqual({ ...sample(), skipped: 2 });
+    expect(report.skippedRecords).toEqual([{ table: 'answers', id: 'orphan' }, { table: 'settings', id: 'bad-setting' }]);
+    expect(await Promise.all(source.db.tables.map((table) => table.toArray()))).toEqual(before);
+    await target.repo.importData(JSON.parse(JSON.stringify(report.data)));
+    expect(await target.repo.exportData()).toEqual(sample());
+    expect(await target.db.settings.toArray()).toEqual(sample().settings);
+    expect(await target.db.answers.toArray()).toEqual(sample().answers);
+  });
+
+  it('strict import validates retained raw records rather than substituting the salvaged export', async () => {
+    const { db, repo } = fresh();
+    await repo.importData(sample());
+    await db.answers.put({ attemptId: 'a1', answers: { q1: undefined }, updatedAt: 200 } as unknown as Parameters<typeof db.answers.put>[0]);
+    const write = vi.spyOn(db.attempts, 'bulkPut');
+    expect((await repo.exportData()).answers).toEqual([]);
+    await expect(repo.importData(sample('incoming'))).rejects.toThrow();
+    expect(write).not.toHaveBeenCalled();
+    expect(await repo.getAttempt('incoming')).toBeUndefined();
+    expect(await db.answers.get('a1')).toEqual({ attemptId: 'a1', answers: { q1: undefined }, updatedAt: 200 });
   });
 
   it.each(['attempts', 'answers', 'results', 'highlights', 'settings'] as const)(

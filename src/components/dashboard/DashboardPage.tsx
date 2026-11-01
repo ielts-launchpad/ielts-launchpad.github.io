@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { buildDashboard, type Dashboard } from '../../engine/analytics/dashboard';
 import { findTip, type PracticeTip } from '../../engine/analytics/tips';
-import { SKILLS } from '../../engine/content/schema';
+import { SKILLS, type Skill } from '../../engine/content/schema';
 import { overallBand } from '../../exams/ielts/bands';
 import { en } from '../../i18n/en';
 import { toDashboardResults } from '../../lib/analytics/dashboard-results';
@@ -31,6 +31,17 @@ function ScrollTable({ label, children }: { label: string; children: ReactNode }
   </div>;
 }
 
+function OverallNeeds({ latestBands }: { latestBands: Dashboard['latestBands'] }) {
+  const missing = (Object.keys(en.catalog.skills) as Skill[]).filter((skill) => latestBands[skill] === null);
+  if (missing.length === 0) return null;
+  const [prefix, suffix] = copy.overallNeeds.split('{skills}');
+  return <p className="mt-4 text-sm text-slate-700" data-testid="dashboard-overall-needs">
+    {prefix}{missing.map((skill, index) => <span key={skill}>
+      {index > 0 && ', '}<a href={`/tests?skill=${skill}`} className={`inline-block min-h-11 rounded-sm py-3 font-semibold underline ${focus}`}>{en.catalog.skills[skill]}</a>
+    </span>)}{suffix}
+  </p>;
+}
+
 /** Pure view also supports rendering recommendations without browser storage. */
 export function DashboardView({ dashboard, tips }: { dashboard: Dashboard; tips: readonly PracticeTip[] }) {
   return <div className="grid min-w-0 gap-6" data-testid="dashboard-data">
@@ -44,6 +55,7 @@ export function DashboardView({ dashboard, tips }: { dashboard: Dashboard; tips:
         <div><dt className="text-slate-700">{copy.overall}</dt>
           <dd className="mt-1 text-3xl font-bold" data-testid="current-overall">{bandText(dashboard.currentBand)}</dd></div>
       </dl>
+      <OverallNeeds latestBands={dashboard.latestBands} />
       <p className="mt-4 text-sm text-slate-700">{copy.fullOnly}</p>
       <p className="mt-2 text-sm text-slate-700">{copy.disclaimer}</p>
     </section>
@@ -160,7 +172,10 @@ export default function DashboardPage({ tips }: { tips: PracticeTip[] }) {
     <p ref={status} tabIndex={-1} role="status" data-testid="dashboard-status" className={state.status === 'ready' ? 'sr-only' : 'text-slate-700'}>{message}</p>
     {state.status === 'error' && <button type="button" className={`mt-4 min-h-11 rounded border-2 border-slate-700 px-4 py-2 ${focus}`}
       onClick={() => { focusAfterRetry.current = true; void load(); }}>{copy.retry}</button>}
-    {state.status === 'empty' && <a href="/tests" className={`mt-4 inline-block py-3 font-semibold underline ${focus}`}>{copy.testsLink}</a>}
+    {state.status === 'empty' && <>
+      <OverallNeeds latestBands={buildDashboard([]).latestBands} />
+      <a href="/tests" className={`mt-4 inline-block py-3 font-semibold underline ${focus}`}>{copy.testsLink}</a>
+    </>}
     {state.status === 'ready' && <DashboardView dashboard={state.dashboard} tips={tips} />}
   </div>;
 }

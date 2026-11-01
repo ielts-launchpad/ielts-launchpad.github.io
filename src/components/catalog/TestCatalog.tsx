@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   filterCatalogCards,
   type CatalogCard,
@@ -14,6 +14,13 @@ export interface TestCatalogProps {
 
 export function TestCatalog({ cards, includeDrafts }: TestCatalogProps) {
   const [filters, setFilters] = useState<CatalogFilters>({ skill: 'all', kind: 'all' });
+  useEffect(() => {
+    // Read after hydration so the static page and initial client markup agree.
+    const skill = new URLSearchParams(window.location.search).get('skill');
+    if (skill === 'reading' || skill === 'listening' || skill === 'writing' || skill === 'speaking') {
+      setFilters((current) => ({ ...current, skill }));
+    }
+  }, []);
   const visible = filterCatalogCards(cards, filters);
   const controlClass = 'mt-2 w-full rounded-lg border border-slate-500 bg-white p-3 text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900';
 

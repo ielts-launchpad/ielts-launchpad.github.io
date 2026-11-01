@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { en } from '@/i18n/en';
+import { format } from '@/i18n/format';
 import { brand } from '@/config/brand';
 import { backupSchema, mergeBackupData, type BackupData } from '@/engine/data/backup';
 import { RunnerRepository } from '@/lib/storage/repository';
@@ -95,15 +96,20 @@ export default function SettingsPage() {
 
   async function exportData(): Promise<void> {
     await run(async () => {
-      const data = await repo().exportData();
-      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const report = await repo().exportDataWithReport();
+      const url = URL.createObjectURL(new Blob([JSON.stringify(report.data, null, 2)], { type: 'application/json' }));
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = brand.backupFilename;
       try {
         document.body.append(anchor);
         anchor.click();
-        if (mounted.current) setMessage(copy.exportDone);
+        if (mounted.current) setMessage(report.skippedRecords.length === 0 ? copy.exportDone : format(copy.exportSkipped, {
+          n: report.data.skipped,
+          records: report.skippedRecords.map((record) => format(copy.skippedRecord, {
+            table: copy.tables[record.table], id: record.id ?? copy.unknownRecord,
+          })).join(', '),
+        }));
       } finally {
         anchor.remove();
         // Let the browser consume the download before releasing its URL.
