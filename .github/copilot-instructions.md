@@ -9,3 +9,4 @@
 - Never copy official IELTS/Cambridge/British Council/IDP text, tests or band descriptors. Paraphrase in our own words.
 - Every feature ships with tests (Vitest for logic, Playwright for UI). Run `npm run lint && npm run typecheck && npm test && npm run test:e2e` and fix failures before saying a task is done.
 - At the end of each task: list files changed, how to verify manually, and any action I must do by hand.
+- Every PR description must list `Closes #N` for each issue it fully completes and `Refs #N` for partial work. After merging, verify the issues closed, tick them in the milestone tracking issue, and close the tracking issue and milestone when all children are done. Stacked PRs don't auto-close: close those issues manually after merge.
