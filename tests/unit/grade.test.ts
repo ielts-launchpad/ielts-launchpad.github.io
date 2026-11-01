@@ -128,6 +128,11 @@ describe('gradeQuestion — gap', () => {
     expect(grade(group, 'bat').errorClass).toBe('wrong');
   });
 
+  it('classifies a misspelt number word as spelling (compared before number conversion)', () => {
+    const group = gapGroup(['forty'], { words: 1, numberAllowed: false });
+    expect(grade(group, 'fourty').errorClass).toBe('spelling');
+  });
+
   it('classifies an unrelated answer as wrong', () => {
     const group = gapGroup(['river'], { words: 1, numberAllowed: false });
     expect(grade(group, 'mountain').errorClass).toBe('wrong');
@@ -174,8 +179,18 @@ describe('gradeQuestion — multi (Choose N)', () => {
     expect(r.errorClass).toBe('wrong');
   });
 
-  it('ignores a wrong extra letter without penalty', () => {
-    expect(grade(multiGroup(), ['B', 'D']).marks).toBe(2);
+  it('scores 0 (over-limit) when more than N distinct options are picked', () => {
+    const r = grade(multiGroup(), ['B', 'D', 'A']);
+    expect(r.marks).toBe(0);
+    expect(r.correct).toBe(false);
+    expect(r.errorClass).toBe('over-limit');
+  });
+
+  it('scores 0 (over-limit) when every option is selected', () => {
+    const r = grade(multiGroup(), ['A', 'B', 'C', 'D']);
+    expect(r.marks).toBe(0);
+    expect(r.correct).toBe(false);
+    expect(r.errorClass).toBe('over-limit');
   });
 
   it('marks an empty selection as blank', () => {

@@ -14,7 +14,7 @@ import {
 } from '../content/schema';
 import type { LoadedTest } from '../content/loader';
 import { countWords, expandOptionalWords } from '../text/words';
-import { canonicalAnswer, canonicalOption } from './normalise';
+import { canonicalAnswer, canonicalOption, foldedAnswer } from './normalise';
 import { damerauLevenshtein } from './distance';
 
 /** A user's response to one question. */
@@ -53,29 +53,43 @@ function firstString(response: UserResponse): string {
   return arr.length > 0 ? arr[0] : '';
 }
 
-/** Accepted canonical forms for a gap question (optional words expanded). */
-function acceptedGapForms(question: StandardQuestion): string[] {
-  const forms = new Set<string>();
+/** Accepted forms for a gap question, in both canonical and folded shapes. */
+interface AcceptedGapForms {
+  /** Number-converted canonical forms, used for the match and plural check. */
+  canonical: string[];
+  /** Folded (pre-number-conversion) forms, used for spelling classification. */
+  folded: string[];
+}
+
+function acceptedGapForms(question: StandardQuestion): AcceptedGapForms {
+  const canonical = new Set<string>();
+  const folded = new Set<string>();
   for (const answer of question.answers) {
     for (const variant of expandOptionalWords(answer)) {
-      forms.add(canonicalAnswer(variant));
+      canonical.add(canonicalAnswer(variant));
+      folded.add(foldedAnswer(variant));
     }
   }
-  return [...forms];
+  return { canonical: [...canonical], folded: [...folded] };
 }
 
 function isPluralDiff(a: string, b: string): boolean {
   return a === `${b}s` || a === `${b}es` || b === `${a}s` || b === `${a}es`;
 }
 
-function classifyGap(userCanon: string, accepted: string[]): ErrorClass {
-  for (const a of accepted) {
+function isSpellingMiss(user: string, accepted: string[]): boolean {
+  if (user.length < 4) return false;
+  return accepted.some((a) => damerauLevenshtein(user, a, 2) <= 2);
+}
+
+function classifyGap(userCanon: string, userFolded: string, accepted: AcceptedGapForms): ErrorClass {
+  for (const a of accepted.canonical) {
     if (isPluralDiff(userCanon, a)) return 'plural';
   }
-  if (userCanon.length >= 4) {
-    for (const a of accepted) {
-      if (damerauLevenshtein(userCanon, a, 2) <= 2) return 'spelling';
-    }
+  // Spelling also compares the raw lower-cased answer before number conversion,
+  // so a misspelt number word (e.g. "fourty" vs "forty") is classed as spelling.
+  if (isSpellingMiss(userCanon, accepted.canonical) || isSpellingMiss(userFolded, accepted.folded)) {
+    return 'spelling';
   }
   return 'wrong';
 }
@@ -101,10 +115,15 @@ function gradeGap(
 
   const accepted = acceptedGapForms(question);
   const userCanon = canonicalAnswer(raw);
-  if (accepted.includes(userCanon)) {
+  if (accepted.canonical.includes(userCanon)) {
     return { ...base, marks: 1, correct: true, errorClass: null };
   }
-  return { ...base, marks: 0, correct: false, errorClass: classifyGap(userCanon, accepted) };
+  return {
+    ...base,
+    marks: 0,
+    correct: false,
+    errorClass: classifyGap(userCanon, foldedAnswer(raw), accepted),
+  };
 }
 
 function gradeOption(question: StandardQuestion, response: UserResponse): QuestionResult {
@@ -129,6 +148,11 @@ function gradeMulti(question: MultiQuestion, response: UserResponse): QuestionRe
 
   if (picked.size === 0) {
     return { ...base, marks: 0, correct: false, errorClass: 'blank' };
+  }
+  // The UI prevents picking more than N, but if more than N distinct options
+  // arrive the whole answer scores 0 rather than cherry-picking the right ones.
+  if (picked.size > question.n) {
+    return { ...base, marks: 0, correct: false, errorClass: 'over-limit' };
   }
 
   let marks = 0;

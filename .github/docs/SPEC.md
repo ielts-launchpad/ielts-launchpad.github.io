@@ -150,13 +150,13 @@ modelAnswers: [{ part: 2, band: 7, text: "..." }]
 - Spelling is STRICT: only listed variants accepted (UK/US variants must be listed). **No fuzzy matching.**
 - Optional words: `(the) river` expands to "river" and "the river".
 - Numbers: a digit token equals its English word for integers 0–999 ("4" = "four", "twenty-one" = "21").
-- Word limit: words = whitespace tokens; hyphenated token counts as one word; if `numberAllowed`, one numeric token is not counted as a word. Exceeding the limit = wrong even if it contains the answer.
-- `multi` (Choose N): each correct letter = 1 mark, order irrelevant. UI prevents selecting more than N.
+- Word limit: words = whitespace tokens; hyphenated token counts as one word; if `numberAllowed`, one numeric token is not counted as a word. A token counts as a number after stripping a leading currency symbol (£ $ € ¥) and a trailing `%` or `am`/`pm` (so `£25`, `25%` and `9am` are each a number). A number written in words (e.g. "five") counts as a word, not as the allowed number. Exceeding the limit = wrong even if it contains the answer.
+- `multi` (Choose N): each correct letter = 1 mark, order irrelevant. UI prevents selecting more than N; if more than N distinct options are submitted anyway, the whole answer scores 0 (`over-limit`).
 - `single` / `select` / `dragBank`: exact option letter match.
 
 ### Error classification (answer still marked wrong; used for feedback + analytics)
-`blank` | `over-limit` (exceeds word limit) | `plural` (differs from an accepted answer only by trailing s/es) |
-`spelling` (Damerau-Levenshtein ≤ 2 from an accepted answer, answer length ≥ 4) | `wrong`.
+`blank` | `over-limit` (exceeds the word limit, or a Choose-N answer picks more than N) | `plural` (differs from an accepted answer only by trailing s/es) |
+`spelling` (Damerau-Levenshtein ≤ 2 from an accepted answer, answer length ≥ 4; compared both after and before number conversion so a misspelt number word like "fourty" vs "forty" is caught) | `wrong`.
 
 ### Raw score → band (put in `src/exams/ielts/bands.ts`, comment "verify against ielts.org before release")
 Listening: 39–40=9, 37–38=8.5, 35–36=8, 32–34=7.5, 30–31=7, 26–29=6.5, 23–25=6, 18–22=5.5, 16–17=5, 13–15=4.5, 10–12=4, 8–9=3.5, 6–7=3, 4–5=2.5, 2–3=2, 1=1, 0=0
