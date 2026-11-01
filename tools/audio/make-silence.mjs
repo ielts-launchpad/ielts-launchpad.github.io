@@ -4,10 +4,17 @@
 // Usage: node tools/audio/make-silence.mjs <output.opus> [durationSec]
 //
 // The file is a structurally correct Ogg Opus stream (OpusHead + OpusTags +
-// audio pages). Each audio packet is a single TOC byte describing a 20 ms mono
-// frame with no compressed data, which decoders render as silence. This is
-// enough for placeholder audio in draft content; real audio is produced by the
-// TTS pipeline later.
+// audio pages) with the correct granule positions, so its duration reads back
+// exactly (see src/engine/audio/ogg.ts). Each audio packet is a single TOC byte
+// describing a 20 ms mono SILK frame with no compressed data.
+//
+// KNOWN M4 RISK — browser playability: a 1-byte (TOC-only) Opus packet carries a
+// zero-length frame. libopus-based decoders generally render these as DTX/PLC
+// silence, so the file should play, but this is not guaranteed across every
+// browser/decoder and we cannot emit genuinely encoded SILK/CELT silence frames
+// by hand without a codec dependency. This placeholder is only for draft
+// content; real, fully-encoded audio comes from the TTS pipeline in M4, which
+// also removes this risk.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';

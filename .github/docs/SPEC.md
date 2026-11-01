@@ -140,9 +140,9 @@ modelAnswers: [{ part: 2, band: 7, text: "..." }]
 2. **Mocks only** — Listening: exactly 4 parts, 40 questions, numbers 1–40 contiguous; Reading: 3 passages, 40 questions, 1–40 contiguous. Practice sets are partial by design and only require question numbers to be unique within each skill.
 3. Every gap answer variant obeys its own `wordLimit` (after expanding optional words).
 4. `multi`: `answers.length === n === numbers.length`; options unique; `single`/`select`/`dragBank` answers exist in `options` and list exactly one answer unless the group sets `acceptAlternatives: true`.
-5. `evidence.quote` appears verbatim (case-insensitive, whitespace-normalised) in the passage/transcript; a listening part's transcript must be present and non-empty.
-6. Reading passages 650–1000 words; audio files exist; template placeholders match question numbers.
-7. Auto-generated "perfect answer sheet" scores 40/40; every listed variant is accepted; every non-answer option is rejected. *(Implemented in M2.4, once the grading engine exists.)*
+5. `evidence.quote` appears verbatim (case-insensitive, whitespace-normalised) in the passage/transcript; a listening part's transcript must be present and non-empty. For transcripts, `[mm:ss.s]` timestamps and a leading `SPEAKER:` label are stripped before matching, so a quote may span several lines.
+6. Reading passages 650–1000 words; audio files exist and their real duration (read from the Ogg granule position) matches `durationSec` within ±1 s; every `evidence.audioStart` is less than the part's `durationSec`; template placeholders match question numbers.
+7. Auto-generated "perfect answer sheet" scores full marks (40/40 for a mock; every question correct for a practice set); every listed variant is accepted; every non-answer option is rejected.
 
 ## 4. Grading rules (Listening & Reading) — identical to real IELTS
 - 1 mark per question, no negative marking, blank = 0.

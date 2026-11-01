@@ -17,6 +17,24 @@ export function foldForMatch(value: string): string {
 }
 
 /**
+ * Strip listening-transcript markup so evidence quotes can be matched verbatim
+ * even when they span several lines (SPEC §3 rule 5). Removes `[mm:ss.s]`
+ * timestamps anywhere on a line and a leading `SPEAKER:` label, then joins all
+ * lines with a single space. The result is still raw (not case-folded); callers
+ * pass it through {@link foldForMatch}.
+ */
+export function stripTranscriptMarkup(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .replace(/\[\d{1,2}:\d{2}(?:\.\d+)?\]/g, ' ')
+        .replace(/^\s*[A-Z][A-Z0-9 .'-]{0,30}:\s/, ' '),
+    )
+    .join(' ');
+}
+
+/**
  * Expand optional words wrapped in parentheses into every accepted form.
  * `"(the) river"` → `["river", "the river"]`. Multiple optional tokens expand to
  * all combinations. Returns unique, whitespace-normalised variants.

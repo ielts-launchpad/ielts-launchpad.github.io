@@ -43,12 +43,12 @@ groups:
         prompt: 'gloves'
         answers: ['A']
         evidence:
-          quote: 'a pair of gloves'
+          quote: 'a pair of gloves to protect your hands'
           audioStart: 18.0
       - id: L1-q4
         number: 4
         prompt: 'a trowel'
         answers: ['B']
         evidence:
-          quote: 'a small trowel'
+          quote: 'a small trowel for digging holes'
           audioStart: 18.0
