@@ -438,7 +438,13 @@
 <!-- meta: id=M7.3; label=code; milestone=M7; depends=M0.1; assignee= -->
 **Implements:** SPEC §2.
 
-**Acceptance criteria:** Script generates `.opus` audio with word timestamps aligned to transcript `[mm:ss.s]`; outputs to `public/audio/...`; no secrets committed.
+**Acceptance criteria:**
+
+- Script generates `.opus` audio with word timestamps aligned to transcript `[mm:ss.s]`; outputs to `public/audio/...`; no secrets committed.
+- Synthesize whole turns/sentences; never split sentences to measure timing.
+- Derive `evidence.audioStart` and transcript timestamps from word-boundary timings: Azure `WordBoundary` events; for a Kokoro fallback, use forced alignment such as Whisper word timestamps or aeneas. Round timestamps to 0.1 s.
+- Use the full-precision model when falling back to Kokoro.
+- Human listening approval is required before setting `status: published`.
 
 **Tests:** Unit — timestamp parser/formatter; dry-run without network.
 
