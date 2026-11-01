@@ -12,6 +12,32 @@ See the LICENSE-CONTENT file for the full text.
 
 ----------------------------------------------------------------------
 
+Synthetic sample audio
+
+public/audio/academic/sample-01/part-1.opus speaks the original project-authored
+transcript using Kokoro v1.0 (Kokoro-82M), by hexgrad and contributors.
+The model and its bundled voice/style embeddings are distributed under the
+Apache License 2.0. Selected British English embeddings: bf_emma (NARRATOR),
+bm_george (CLERK), and bf_isabella (VISITOR), from voices-v1.0.bin.
+Model/voice source: https://huggingface.co/hexgrad/Kokoro-82M
+Upstream licence: https://github.com/hexgrad/kokoro/blob/main/LICENSE
+ONNX model and voice-pack distribution (model-files-v1.0):
+https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0
+
+Local inference: kokoro-onnx 0.6.1, MIT License,
+Copyright (c) 2025 github.com/thewh1teagle.
+https://github.com/thewh1teagle/kokoro-onnx/blob/main/LICENSE
+Encoding: FFmpeg n8.1.3-27-g8dca1586f4-20261031, a GPL-3.0-enabled BtbN build.
+https://github.com/BtbN/FFmpeg-Builds
+
+The generated sample audio is project practice content, CC BY-SA 4.0,
+attributed to IELTS Launchpad contributors. The voice IDs identify synthetic
+styles, not credited performers or an endorsement. No model weights, voice
+embeddings, inference libraries, or FFmpeg binaries are shipped by this site.
+Reproduction commands, versions and hashes: tools/audio/README.md.
+
+----------------------------------------------------------------------
+
 Trademark notice
 
 IELTS is a registered trademark of the British Council, IDP: IELTS Australia and

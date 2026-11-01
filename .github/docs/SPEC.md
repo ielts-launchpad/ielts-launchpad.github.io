@@ -238,7 +238,7 @@ Each milestone is done only when lint, typecheck, unit tests, e2e tests and axe 
 
 ### Default decisions for implementation questions
 - External values not yet available (Worker URL, Turnstile site key, API keys, model IDs): read from env/config with placeholders in `.env.example`; never block on them. Use Cloudflare's documented Turnstile **test keys** in dev and tests.
-- Audio in the sample test: a short generated silent/tone `.opus` file committed to the repo.
+- Audio in the sample test: a short, locally generated Kokoro spoken `.opus` file committed to the repo, with a different voice per speaker, measured transcript/evidence timestamps, and model/voice credits in `NOTICE`. Exact one-off generation commands are in `tools/audio/README.md`; this does not implement the M7 content tooling phase.
 - Real mock content is NOT part of the code work; only the draft sample test is.
 - Package manager: npm. Node: current LTS, pinned in `.nvmrc`.
 - When in doubt, choose the simpler option that satisfies the spec and write the assumption into the PR description.

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { sampleAudioTime } from '../fixtures/sample-audio';
 import { expectNoA11yViolations } from './helpers/a11y';
 import { gotoListening, waitListeningSaved } from './helpers/listening';
 import { MOBILE } from './helpers/runner';
@@ -23,7 +24,7 @@ async function checkPlayer(page: Page, results: boolean): Promise<void> {
   await expect(progress).toHaveAccessibleName('Audio position (seconds)');
   await expect(page.getByTestId('audio-play')).toHaveAccessibleName('Play');
   await expect(page.getByTestId('audio-pause')).toHaveAccessibleName('Pause');
-  await expect(page.getByTestId('audio-time')).toHaveText('0:00 of 0:24');
+  await expect(page.getByTestId('audio-time')).toHaveText(`0:00 of ${sampleAudioTime}`);
   await page.getByTestId('audio-play').focus();
   await page.keyboard.press('Space');
   await expect.poll(async () => Number(await progress.inputValue())).toBeGreaterThan(0.2);
@@ -36,8 +37,8 @@ async function checkPlayer(page: Page, results: boolean): Promise<void> {
   await expect(progress).toHaveValue('0');
   await page.keyboard.press('ArrowRight');
   await expect(progress).toHaveValue('5');
-  await expect(progress).toHaveAttribute('aria-valuetext', '0:05 of 0:24');
-  await expect(page.getByTestId('audio-time')).toHaveText('0:05 of 0:24');
+  await expect(progress).toHaveAttribute('aria-valuetext', `0:05 of ${sampleAudioTime}`);
+  await expect(page.getByTestId('audio-time')).toHaveText(`0:05 of ${sampleAudioTime}`);
   await page.keyboard.press('ArrowUp');
   await expect(progress).toHaveValue('10');
   await page.keyboard.press('ArrowLeft');

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LoadedTest } from '../../src/engine/content/loader';
 import { validateTest } from '../../src/engine/content/validate';
+import { sampleAudioDuration } from '../fixtures/sample-audio';
 
 const QUOTE = 'the bees are busy';
 const passageText = `${QUOTE} ${'lorem '.repeat(700)}`.trim();
@@ -303,7 +304,7 @@ describe('validateTest', () => {
       listeningTest({
         transcriptText: '[00:00.0] CLERK: the bees are busy',
         quote: 'the bees are busy',
-        durationSec: 50, // the committed sample is ~24s
+        durationSec: sampleAudioDuration + 5,
         audioStart: 2,
         audioFsPath: sampleOpus,
       }),
@@ -316,7 +317,7 @@ describe('validateTest', () => {
       listeningTest({
         transcriptText: '[00:00.0] CLERK: the bees are busy',
         quote: 'the bees are busy',
-        durationSec: 24,
+        durationSec: sampleAudioDuration,
         audioStart: 2,
         audioFsPath: sampleOpus,
       }),

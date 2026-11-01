@@ -1,16 +1,43 @@
 import { expect, test } from '@playwright/test';
+import alignment from '../../tools/audio/sample-01.alignment.json' with { type: 'json' };
+import { sampleAudioDuration } from '../fixtures/sample-audio';
 import { expectNoA11yViolations } from './helpers/a11y';
 import { MOBILE } from './helpers/runner';
 import { endPart, gotoListening, waitListeningSaved } from './helpers/listening';
 
-test('committed Opus really decodes and advances in Chromium', async ({ page }) => {
+test('committed spoken Opus decodes, advances and has sound in every aligned chunk', async ({ page }) => {
   await gotoListening(page);
+  await expect(page.getByTestId('listening-runner')).not.toContainText('silent placeholder');
+  await expect(page.getByText('This draft uses locally generated synthetic speech for testing, not a recording of real speakers.', { exact: false })).toBeVisible();
   const audio = page.getByTestId('listening-audio');
   await page.getByTestId('audio-play').click();
   await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeGreaterThan(0.2);
   expect(await audio.evaluate((node) => ({ paused: (node as HTMLAudioElement).paused, error: (node as HTMLAudioElement).error?.code ?? null })))
     .toEqual({ paused: false, error: null });
   await expect(page.getByTestId('audio-status')).toHaveText('Audio playing');
+  const spans = alignment.turns.flatMap((turn) => turn.chunks.map((chunk) => ({
+    start: chunk.startSample / alignment.sampleRate, end: chunk.endSample / alignment.sampleRate,
+  })));
+  const decoded = await audio.evaluate(async (node, chunks) => {
+    const context = new AudioContext({ sampleRate: 24000 });
+    try {
+      const response = await fetch((node as HTMLAudioElement).currentSrc);
+      if (!response.ok) throw new Error('Sample audio fetch failed');
+      const buffer = await context.decodeAudioData(await response.arrayBuffer());
+      const samples = buffer.getChannelData(0);
+      return { duration: buffer.duration, channels: buffer.numberOfChannels,
+        rms: chunks.map(({ start, end }) => {
+          const values = samples.subarray(Math.floor(start * buffer.sampleRate), Math.ceil(end * buffer.sampleRate));
+          let squares = 0;
+          for (const value of values) squares += value * value;
+          return Math.sqrt(squares / values.length);
+        }) };
+    } finally { await context.close(); }
+  }, spans);
+  expect(decoded.duration).toBeCloseTo(sampleAudioDuration, 2);
+  expect(decoded.channels).toBe(1);
+  expect(decoded.rms).toHaveLength(spans.length);
+  for (const rms of decoded.rms) expect(rms).toBeGreaterThan(0.01);
 });
 
 test('exam blocks pause, seek, replay and answer checks', async ({ page }) => {
@@ -125,6 +152,6 @@ test('native audio ended event enters review without a simulated end event', asy
   // Accelerate the media test only; no speed control exists in the exam UI.
   await page.getByTestId('listening-audio').evaluate((node) => { (node as HTMLAudioElement).playbackRate = 16; });
   await page.getByTestId('audio-play').click();
-  await expect(page.getByTestId('listening-review')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('listening-review')).toBeVisible({ timeout: Math.ceil(sampleAudioDuration / 16 * 1000) + 8000 });
   expect(await page.getByTestId('listening-audio').evaluate((node) => (node as HTMLAudioElement).error)).toBeNull();
 });
