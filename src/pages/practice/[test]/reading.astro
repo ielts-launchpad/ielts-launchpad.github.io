@@ -1,0 +1,41 @@
+---
+import { join } from 'node:path';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { loadAllTests } from '@/engine/content/loader';
+import { buildReadingRunnerData } from '@/engine/content/runner-data';
+import type { ReadingRunnerData } from '@/engine/runner/types';
+import { ReadingRunner } from '@/components/runner/ReadingRunner';
+import { en } from '@/i18n/en';
+
+export function getStaticPaths() {
+  const root = process.cwd();
+  const tests = loadAllTests({
+    contentDir: join(root, 'content'),
+    publicDir: join(root, 'public'),
+    includeDrafts: true,
+  });
+
+  return tests
+    .filter((test) => test.reading.length > 0)
+    .map((test) => ({
+      params: { test: test.meta.id },
+      props: { data: buildReadingRunnerData(test) },
+    }));
+}
+
+interface Props {
+  data: ReadingRunnerData;
+}
+
+const { data } = Astro.props;
+---
+
+<BaseLayout
+  title={en.runner.reading.title}
+  description={en.runner.reading.description}
+  noindex={data.isDraft}
+  wide
+>
+  <h1 class="sr-only">{data.testTitle}</h1>
+  <ReadingRunner client:only="react" data={data} />
+</BaseLayout>
