@@ -1,0 +1,38 @@
+---
+import { join } from 'node:path';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { loadAllTests } from '@/engine/content/loader';
+import { buildListeningRunnerData } from '@/engine/content/runner-data';
+import type { ListeningRunnerData } from '@/engine/runner/types';
+import { ListeningRunner } from '@/components/runner/ListeningRunner';
+import { en } from '@/i18n/en';
+import { brand } from '@/config/brand';
+
+export async function getStaticPaths() {
+  const tests = loadAllTests({
+    contentDir: join(process.cwd(), 'content'),
+    publicDir: join(process.cwd(), 'public'),
+    includeDrafts: import.meta.env.DEV || process.env.INCLUDE_DRAFTS === 'true',
+  });
+  const paths = tests.filter((test) => test.listening.length > 0).map((test) => ({
+    params: { id: test.meta.id }, props: { data: buildListeningRunnerData(test) },
+  }));
+  if (process.env.INCLUDE_DRAFTS === 'true') {
+    const sample = paths.find((path) => path.params.id === 'sample-01');
+    if (sample) {
+      const { mockListeningFixture } = await import('../../../../tests/fixtures/listening-mock');
+      const data = mockListeningFixture(sample.props.data);
+      paths.push({ params: { id: data.testId }, props: { data } });
+    }
+  }
+  return paths;
+}
+interface Props { data: ListeningRunnerData; }
+const { data } = Astro.props;
+---
+
+<BaseLayout title={`${en.runner.listening.title} — ${brand.name}`} description={en.runner.listening.description} noindex={data.isDraft} wide>
+  <ListeningRunner client:only="react" data={data}>
+    <p slot="fallback" role="status" data-testid="save-status">{en.runner.toolbar.loading}</p>
+  </ListeningRunner>
+</BaseLayout>

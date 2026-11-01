@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 260" width="600" height="260">
+  <title>School beekeeping diagram with labels 18 and 19</title>
+  <desc>An original schematic: hives above a school and a public path to its left.</desc>
+  <rect width="600" height="260" fill="#f8fafc"/>
+  <g stroke="#334155" stroke-width="3" fill="none">
+    <path d="M55 65V225M115 65V225"/>
+    <path d="M300 110H540V225H300Z" fill="#e2e8f0"/>
+    <path d="M292 110H548"/>
+    <path d="M350 80H390V110H350ZM410 80H450V110H410Z" fill="#fde68a"/>
+    <path d="M355 90H385M355 100H385M415 90H445M415 100H445"/>
+    <path d="M120 155H294M120 148V162M294 148V162"/>
+    <path d="M480 45L440 78M439 66L440 78L452 78"/>
+  </g>
+  <g fill="#0f172a" font-family="sans-serif" font-size="20" text-anchor="middle">
+    <text x="85" y="40">Public path</text>
+    <text x="420" y="185">School</text>
+    <text x="208" y="143">18</text>
+    <text x="499" y="43">19</text>
+  </g>
+</svg>

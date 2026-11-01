@@ -1,0 +1,12 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import ResultsPage from '@/components/results/ResultsPage';
+import { en } from '@/i18n/en';
+import { brand } from '@/config/brand';
+---
+
+<BaseLayout title={`${en.results.title} — ${brand.name}`} description={en.results.description} noindex>
+  <ResultsPage client:only="react">
+    <p slot="fallback" role="status">{en.results.loading}</p>
+  </ResultsPage>
+</BaseLayout>

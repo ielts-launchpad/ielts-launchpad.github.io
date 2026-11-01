@@ -7,19 +7,11 @@ import { Navigator } from './Navigator';
 import { PassagePane } from './PassagePane';
 import { Timer } from './Timer';
 import { useRunner } from './useRunner';
+import { resolveRunnerMode } from '@/engine/runner/mode';
 
 const t = en.runner;
 
 type MobileTab = 'passage' | 'questions';
-
-function resolveMode(kind: ReadingRunnerData['kind']): RunnerMode {
-  if (kind === 'mock') return 'exam';
-  if (typeof window !== 'undefined') {
-    const param = new URLSearchParams(window.location.search).get('mode');
-    if (param === 'exam' || param === 'practice') return param;
-  }
-  return 'practice';
-}
 
 interface ReadingRunnerProps {
   data: ReadingRunnerData;
@@ -27,7 +19,7 @@ interface ReadingRunnerProps {
 
 /** Root island for the Reading runner (SPEC §5). */
 export function ReadingRunner({ data }: ReadingRunnerProps): React.JSX.Element {
-  const [mode] = useState<RunnerMode>(() => resolveMode(data.kind));
+  const [mode] = useState<RunnerMode>(() => resolveRunnerMode(data.kind, window.location.search));
   const runner = useRunner(data, mode);
   const [tab, setTab] = useState<MobileTab>('passage');
   const [confirming, setConfirming] = useState(false);
@@ -39,8 +31,8 @@ export function ReadingRunner({ data }: ReadingRunnerProps): React.JSX.Element {
 
   if (runner.loading) {
     return (
-      <p role="status" className="p-6 text-slate-600">
-        {t.reading.loading}
+      <p role="status" data-testid="save-status" className="p-6 text-slate-600">
+        {runner.saveError ? t.toolbar.saveError : t.toolbar.loading}
       </p>
     );
   }
@@ -164,6 +156,7 @@ export function ReadingRunner({ data }: ReadingRunnerProps): React.JSX.Element {
                 <p className="text-green-900" data-testid="result-score">
                   {format(t.result.score, { raw: runner.result.raw, max: runner.result.max })}
                 </p>
+                {runner.saved && <a href={runner.resultUrl} data-testid="results-link" className="mt-3 inline-block font-semibold text-green-900 underline">{t.result.view}</a>}
               </div>
             ) : confirming ? (
               <div className="rounded border border-slate-300 p-4" data-testid="submit-confirm">

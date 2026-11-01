@@ -62,6 +62,22 @@ describe('questionGroupSchema', () => {
     expect(questionGroupSchema.safeParse(validGroup).success).toBe(true);
   });
 
+  it('preserves descriptive image alt text for diagram and map/plan labelling', () => {
+    for (const qtype of ['diagram-labelling', 'map-plan-labelling']) {
+      const parsed = questionGroupSchema.parse({
+        ...validGroup, qtype, image: '/images/plan.svg', imageAlt: 'Label 1 points to the entry on the south edge.',
+      });
+      expect(parsed.image).toBe('/images/plan.svg');
+      expect(parsed.imageAlt).toBe('Label 1 points to the entry on the south edge.');
+    }
+  });
+
+  it('rejects images without non-blank alt text, and alt text without an image', () => {
+    expect(questionGroupSchema.safeParse({ ...validGroup, image: '/images/plan.svg' }).success).toBe(false);
+    expect(questionGroupSchema.safeParse({ ...validGroup, image: '/images/plan.svg', imageAlt: '  ' }).success).toBe(false);
+    expect(questionGroupSchema.safeParse({ ...validGroup, imageAlt: 'A garden plan.' }).success).toBe(false);
+  });
+
   it('rejects an option interaction with no options', () => {
     const { options, ...noOptions } = validGroup;
     void options;

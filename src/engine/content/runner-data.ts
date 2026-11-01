@@ -6,7 +6,7 @@
  */
 import type { LoadedTest } from './loader';
 import { READING_DURATION_SEC } from '../runner/timer';
-import type { ReadingRunnerData, RunnerParagraph, RunnerPassage } from '../runner/types';
+import type { ListeningRunnerData, ReadingRunnerData, RunnerParagraph, RunnerPassage } from '../runner/types';
 
 /** `[A] Some prose…` → `{ label: 'A', text: 'Some prose…' }`. */
 export function parsePassageParagraphs(markdown: string): RunnerParagraph[] {
@@ -36,11 +36,30 @@ export function buildReadingRunnerData(test: LoadedTest): ReadingRunnerData {
     }));
 
   return {
+    variant: test.meta.variant,
     testId: test.meta.id,
     testTitle: test.meta.title,
     kind: test.meta.kind,
     isDraft: test.isDraft,
     durationSec: READING_DURATION_SEC,
     passages,
+  };
+}
+
+/** Prepare ordered listening parts, retaining transcripts only for result review. */
+export function buildListeningRunnerData(test: LoadedTest): ListeningRunnerData {
+  return {
+    testId: test.meta.id,
+    testTitle: test.meta.title,
+    variant: test.meta.variant,
+    kind: test.meta.kind,
+    isDraft: test.isDraft,
+    parts: test.listening.slice().sort((a, b) => a.part.part - b.part.part).map((loaded) => ({
+      part: loaded.part.part,
+      audio: loaded.part.audio,
+      durationSec: loaded.part.durationSec,
+      transcript: loaded.transcriptText,
+      groups: loaded.part.groups,
+    })),
   };
 }

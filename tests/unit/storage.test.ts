@@ -77,6 +77,18 @@ describe('RunnerRepository — answers (autosave upsert)', () => {
 });
 
 describe('RunnerRepository — results', () => {
+  it('commits the immutable review and submitted attempt status together', async () => {
+    const repo = freshRepo();
+    await repo.createAttempt(attempt());
+    await repo.completeAttempt({
+      attemptId: 'a1', testId: 'sample-01', skill: 'reading', raw: 1, max: 1, results: [], createdAt: 42,
+      review: { answers: { q1: 'A' }, sections: [], variant: 'academic', kind: 'practice' },
+    });
+    expect((await repo.getAttempt('a1'))?.status).toBe('submitted');
+    expect((await repo.getAttempt('a1'))?.submittedAt).toBe(42);
+    expect((await repo.getResult('a1'))?.review?.answers).toEqual({ q1: 'A' });
+  });
+
   it('saves and reads a graded result snapshot', async () => {
     const repo = freshRepo();
     await repo.saveResult({

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 260" width="600" height="260">
+  <title>Garden workshop plan with labels 1 and 2</title>
+  <desc>An original schematic with north at the top, two numbered entries, garden beds and bicycle parking.</desc>
+  <rect width="600" height="260" fill="#f8fafc"/>
+  <g stroke="#334155" stroke-width="3" fill="none">
+    <path d="M150 35H270M330 35H450V215H330M270 215H150Z"/>
+    <path d="M190 80H265V160H190ZM335 80H410V160H335Z" fill="#d1fae5"/>
+    <path d="M300 40V90M300 90H315M300 90H285M300 210V165"/>
+    <path d="M98 180L275 215M265 204L275 215L261 218"/>
+    <path d="M500 60L330 35M342 30L330 35L338 47"/>
+    <path d="M75 70V35M67 46L75 35L83 46"/>
+  </g>
+  <g fill="#0f172a" font-family="sans-serif" font-size="19" text-anchor="middle">
+    <text x="75" y="26">N</text>
+    <text x="77" y="178">1</text>
+    <text x="521" y="66">2</text>
+    <text x="380" y="25">Bicycle parking</text>
+    <text x="300" y="244">Garden workshop</text>
+  </g>
+</svg>

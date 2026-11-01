@@ -3,13 +3,18 @@ import { gradeQuestion, type QuestionResult, type UserResponse } from '@/engine/
 import type { Question, QuestionGroup } from '@/engine/content/schema';
 import type { AnswerMap, ReadingRunnerData, RunnerMode } from '@/engine/runner/types';
 import { RunnerRepository } from '@/lib/storage/repository';
-import type { HighlightRecord } from '@/lib/storage/db';
+import type { AttemptSkill, HighlightRecord } from '@/lib/storage/db';
+import type { ListeningState } from '@/engine/runner/listening';
+import { buildReadingReview, type ResultReview } from '@/engine/results/model';
 import type { RunnerController } from './types';
 
 interface UseRunnerResult {
   loading: boolean;
   saved: boolean;
   saveError: boolean;
+  resultUrl: string;
+  listening: ListeningState | null;
+  setListening: (state: ListeningState) => void;
   controller: RunnerController;
   answers: AnswerMap;
   flagged: Set<string>;
@@ -42,11 +47,18 @@ function newId(): string {
 }
 
 /** Owns persistence, autosave, grading and timer state for the reading runner. */
-export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerResult {
+export function useRunner(
+  data: ReadingRunnerData,
+  mode: RunnerMode,
+  skill: AttemptSkill = 'reading',
+  reviewBuilder?: (answers: AnswerMap) => ResultReview,
+): UseRunnerResult {
   const repoRef = useRef<RunnerRepository | null>(null);
   const attemptIdRef = useRef<string>('');
   const answersRef = useRef<AnswerMap>({});
   const nodes = useRef(new Map<string, HTMLElement>());
+  const writes = useRef(new Set<Promise<unknown>>());
+  const submitting = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [pendingWrites, setPendingWrites] = useState(0);
@@ -59,11 +71,15 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
   const [result, setResult] = useState<{ raw: number; max: number } | null>(null);
   const [fontScale, setFontScaleState] = useState(1);
   const [timerStartedAt, setTimerStartedAt] = useState<number | null>(null);
+  const [resultUrl, setResultUrl] = useState('');
+  const [listening, setListeningState] = useState<ListeningState | null>(null);
 
   const persist = useCallback((write: Promise<unknown> | undefined): void => {
     if (!write) return;
+    writes.current.add(write);
     setPendingWrites((pending) => pending + 1);
     void write.catch(() => setSaveError(true)).finally(() => {
+      writes.current.delete(write);
       setPendingWrites((pending) => pending - 1);
     });
   }, []);
@@ -78,7 +94,7 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
     repoRef.current = repo;
 
     void (async () => {
-      const existing = await repo.latestInProgress(data.testId, 'reading');
+      const existing = await repo.latestInProgress(data.testId, skill);
       const now = Date.now();
       let attemptId: string;
       if (existing) {
@@ -91,6 +107,7 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
         setAnswers(saved);
         setFlagged(new Set(existing.flagged));
         setHighlights(savedHighlights);
+        setListeningState(existing.listening ?? null);
         setFontScaleState(existing.fontScale || 1);
         const timerStart = mode === 'exam' ? (existing.timerStartedAt ?? now) : undefined;
         await repo.updateAttempt(attemptId, { mode, timerStartedAt: timerStart });
@@ -105,7 +122,7 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
         await repo.createAttempt({
           id: attemptId,
           testId: data.testId,
-          skill: 'reading',
+          skill,
           mode,
           status: 'in-progress',
           startedAt: now,
@@ -119,6 +136,7 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
         setFontScaleState(initialScale);
         setTimerStartedAt(timerStart ?? null);
       }
+      setResultUrl(`/results?attemptId=${encodeURIComponent(attemptId)}`);
       setLoading(false);
     })().catch(() => {
       if (active) setSaveError(true);
@@ -127,7 +145,12 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
     return () => {
       active = false;
     };
-  }, [data.testId, mode]);
+  }, [data.testId, mode, skill]);
+
+  const setListening = useCallback((state: ListeningState): void => {
+    setListeningState(state);
+    persist(repoRef.current?.updateAttempt(attemptIdRef.current, { listening: state }));
+  }, [persist]);
 
   const setAnswer = useCallback((questionId: string, response: UserResponse): void => {
     setAnswers((prev) => {
@@ -208,11 +231,14 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
   );
 
   const submit = useCallback((): void => {
+    if (submitting.current) return;
+    submitting.current = true;
+    const snapshot = structuredClone(answersRef.current);
     const results: QuestionResult[] = [];
     for (const passage of data.passages) {
       for (const group of passage.groups) {
         for (const question of group.questions) {
-          results.push(gradeQuestion(group, question, answersRef.current[question.id] ?? null));
+          results.push(gradeQuestion(group, question, snapshot[question.id] ?? null));
         }
       }
     }
@@ -221,20 +247,17 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
     const now = Date.now();
     setSubmitted(true);
     setResult({ raw, max });
-    persist(repoRef.current?.saveResult({
-      attemptId: attemptIdRef.current,
-      testId: data.testId,
-      skill: 'reading',
-      raw,
-      max,
-      results,
-      createdAt: now,
-    }));
-    persist(repoRef.current?.updateAttempt(attemptIdRef.current, {
-      status: 'submitted',
-      submittedAt: now,
-    }));
-  }, [data, persist]);
+    const queued = [...writes.current];
+    persist((async () => {
+      await Promise.all(queued);
+      await repoRef.current?.completeAttempt({
+        attemptId: attemptIdRef.current,
+        testId: data.testId,
+        skill, raw, max, results, createdAt: now,
+        review: reviewBuilder ? reviewBuilder(snapshot) : buildReadingReview(data, snapshot, data.variant),
+      });
+    })());
+  }, [data, persist, reviewBuilder, skill]);
 
   const controller = useMemo<RunnerController>(
     () => ({
@@ -267,6 +290,9 @@ export function useRunner(data: ReadingRunnerData, mode: RunnerMode): UseRunnerR
     loading,
     saved: !loading && pendingWrites === 0 && !saveError,
     saveError,
+    resultUrl,
+    listening,
+    setListening,
     controller,
     answers,
     flagged,

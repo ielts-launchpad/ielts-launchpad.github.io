@@ -84,6 +84,7 @@ groups: [ ...QuestionGroup ]
     Name: Sarah {{1}}
     Tour starts at: the {{2}}
   image: /images/mock-01/map.svg    # optional (diagram/map/plan labelling)
+  imageAlt: "Plan with north at the top; label 1 points to the entry on the south edge." # required when image is present
   options: { A: "...", B: "..." }   # for single | multi | select | dragBank
   allowReuse: false                 # select/dragBank: may an option be used more than once
   acceptAlternatives: false         # single/select/dragBank: allow >1 accepted answer (default false)
@@ -136,7 +137,7 @@ modelAnswers: [{ part: 2, band: 7, text: "..." }]
 ```
 
 ### Content validation rules (build fails on any violation)
-1. Zod schema valid; ids unique; `status` present. `meta.skills` must match the content present: every listed skill has content files, content for an unlisted skill is an error, and a `mock` must list all four skills.
+1. Zod schema valid; ids unique; `status` present. An image group requires non-blank, descriptive `imageAlt` text; `imageAlt` must not be supplied without an image. `meta.skills` must match the content present: every listed skill has content files, content for an unlisted skill is an error, and a `mock` must list all four skills.
 2. **Mocks only** — Listening: exactly 4 parts, 40 questions, numbers 1–40 contiguous; Reading: 3 passages, 40 questions, 1–40 contiguous. Practice sets are partial by design and only require question numbers to be unique within each skill.
 3. Every gap answer variant obeys its own `wordLimit` (after expanding optional words).
 4. `multi`: `answers.length === n === numbers.length`; options unique; `single`/`select`/`dragBank` answers exist in `options` and list exactly one answer unless the group sets `acceptAlternatives: true`.
@@ -171,7 +172,7 @@ Overall band rounding: mean of 4 skills; fractional part < .25 → down; .25–<
 - Answers autosave to IndexedDB every change; resume an in-progress attempt after refresh.
 
 ## 6. Results & analytics
-- Results page: raw score, estimated band, per-section breakdown; every question shows user answer, correct answer(s), correct/incorrect, error class, evidence (quote highlighted in passage/transcript), explanation, and for listening a ▶ "Play answer location" button (seek to `audioStart - 3s`).
+- Results page (`/results?attemptId=<id>`, static HTTP 200, noindex): load the attempt from this browser's IndexedDB. If absent, show "Result not found on this device" and a link to Tests; do not use a 404 fallback. Show raw score and per-section breakdown. Show an estimated band only for a full 40-question skill section (`max === 40`) with a saved review identifying its variant; otherwise, for a partial section, show raw score, percentage rounded to the nearest whole percent, and "Band estimates need a full 40-question section". Do not rescale partial scores into band estimates. Every question shows user answer, correct answer(s), correct/incorrect, error class, evidence (quote highlighted in passage/transcript), explanation, and for listening a ▶ "Play answer location" button (seek to `audioStart - 3s`).
 - "Something wrong with this question?" link (results page only) → prefilled GitHub issue URL with test id, question id, user answer.
 - Dashboard: band history chart per skill + overall; accuracy by `qtype` across all attempts; error-class frequency; top 3 weaknesses with recommendations from `content/tips.yaml`; estimated current band (mean of latest result per skill; skills without data shown as "—").
 - Export all data (JSON download) / import (validate with Zod, merge by id).
@@ -210,15 +211,17 @@ Speaking response: same shape with criteria FC, LR, GRA, P; `P.limited: true` wh
 User may paste a Groq or Gemini API key (stored only in IndexedDB, never sent to our Worker). Then the browser calls the provider directly with the same prompts (shared prompt module in `src/ai/prompts.ts`, mirrored in worker). Gemini mode sends the audio for full Pronunciation scoring. Show warning: "Your key is stored only in this browser. Use a key with spending limits. Google requires users to be 18+." Fallback offered automatically when the Worker returns `DAILY_LIMIT` or is unavailable.
 
 ## 9. Pages
-Home, Tests (list by skill/kind), Test runner (`/test/[id]/[skill]`), Results (`/results/[attemptId]`), Dashboard, Planner, Settings (own key, font size, export/import, delete all data), Official resources, How scoring works, About (disclaimer, AI-generated content notice, AI-generated audio notice), Privacy, Terms, Licences & credits, Support (Ko-fi + GitHub Sponsors), 404.
+Home, Tests (list by skill/kind), Test runner (`/test/[id]/[skill]`), Results (`/results?attemptId=<id>`, static page, noindex, device-local lookup), Dashboard, Planner, Settings (own key, font size, export/import, delete all data), Official resources, How scoring works, About (disclaimer, AI-generated content notice, AI-generated audio notice), Privacy, Terms, Licences & credits, Support (Ko-fi + GitHub Sponsors), 404.
 SEO: titles like "IELTS Launchpad — Free IELTS Academic Mock Tests with AI Feedback", meta descriptions, Open Graph, sitemap, robots.txt.
 
 ## 10. Non-functional
 - WCAG 2.2 AA: keyboard-only operable, visible focus, labels, contrast, `prefers-reduced-motion`. axe must pass with zero serious/critical violations.
+- Listening and Results share a custom audio player with hidden native media. Practice/Results have a seekable range; exam progress is read-only. Use slate-900 played progress, slate-200 unplayed track with a dark contrasting boundary, a visible thumb, and a visible focus ring; progress, thumb, boundary and focus indicators meet WCAG 1.4.11 (at least 3:1 against adjacent colours). Style Chromium and Firefox range tracks/thumbs. Display elapsed and total time, labelled Play/Pause controls, and spoken value text such as "0:05 of 0:24". Space/Enter activates playback controls; on the seek range it toggles playback. Arrow keys seek ±5 s in practice/Results only; exam cannot seek or pause.
 - Mobile-first; works on 360 px width.
 - CSP via `<meta http-equiv="Content-Security-Policy">` allowing only self, Turnstile, the Worker URL, Groq/Gemini API hosts.
 - No tracking, no cookies set by us.
 - Production build excludes `status: draft` content; dev build shows it with a "DRAFT" badge.
+- Known limitation: grading is client-side, so answer keys and transcripts are present in page data. This is accepted for a free practice site; no server-side grading.
 
 ## 11. Milestones (implementation phases)
 Each milestone is done only when lint, typecheck, unit tests, e2e tests and axe all pass in CI.

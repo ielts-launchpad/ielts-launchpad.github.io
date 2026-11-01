@@ -4,9 +4,11 @@ durationSec: 24
 transcript: part-1.transcript.md
 groups:
   - id: L1-g1-form
-    instructions: 'Complete the form below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.'
+    instructions: 'Label the garden plan below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.'
     interaction: gap
-    qtype: form-completion
+    qtype: map-plan-labelling
+    image: /images/academic/sample-01/workshop-plan.svg
+    imageAlt: 'Plan of a garden workshop site, with north at the top. Label 1 points to the entry on the south edge, and label 2 points to the gate beside bicycle parking on the north edge.'
     wordLimit:
       words: 2
       numberAllowed: true
@@ -18,12 +20,14 @@ groups:
       - id: L1-q1
         number: 1
         answers: ['main entrance']
+        explanation: 'The clerk names the main entrance as the starting point for the workshop.'
         evidence:
           quote: 'The workshop starts at the main entrance'
           audioStart: 8.2
       - id: L1-q2
         number: 2
         answers: ['north gate']
+        explanation: 'The visitor asks about bicycle parking, and the clerk directs them to the north gate.'
         evidence:
           quote: 'leave them by the north gate'
           audioStart: 14.0
@@ -42,6 +46,7 @@ groups:
         number: 3
         prompt: 'gloves'
         answers: ['A']
+        explanation: 'Gloves are described as protection for the hands, not as tools for digging or watering.'
         evidence:
           quote: 'a pair of gloves to protect your hands'
           audioStart: 18.0
@@ -49,6 +54,7 @@ groups:
         number: 4
         prompt: 'a trowel'
         answers: ['B']
+        explanation: 'The clerk says that the small trowel is used for digging holes.'
         evidence:
           quote: 'a small trowel for digging holes'
           audioStart: 18.0

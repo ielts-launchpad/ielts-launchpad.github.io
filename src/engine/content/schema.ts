@@ -107,6 +107,7 @@ export const questionGroupSchema = z
     qtype: qtypeSchema,
     template: z.string().min(1).optional(),
     image: z.string().min(1).optional(),
+    imageAlt: z.string().trim().min(1).optional(),
     options: z.record(z.string().min(1)).optional(),
     allowReuse: z.boolean().optional(),
     /**
@@ -121,6 +122,21 @@ export const questionGroupSchema = z
   .strict()
   .superRefine((group, ctx) => {
     const optionInteractions: Interaction[] = ['single', 'multi', 'select', 'dragBank'];
+
+    if (group.image && !group.imageAlt) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['imageAlt'],
+        message: 'image requires descriptive imageAlt text',
+      });
+    }
+    if (group.imageAlt && !group.image) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['image'],
+        message: 'imageAlt requires an image',
+      });
+    }
 
     if (optionInteractions.includes(group.interaction)) {
       if (!group.options || Object.keys(group.options).length === 0) {
