@@ -9,6 +9,7 @@ export function mockListeningFixture(sample: ListeningRunnerData): ListeningRunn
     ...sample, testId: 'mock-listening-fixture', kind: 'mock', isDraft: true,
     parts: Array.from({ length: 4 }, (_, partIndex) => ({
       ...source, part: partIndex + 1,
+      audio: `${source.audio}?fixture-part=${partIndex + 1}`,
       groups: Array.from({ length: 10 }, (_, index) => {
         const sourceQuestion = questions[index % questions.length];
         const number = partIndex * 10 + index + 1;

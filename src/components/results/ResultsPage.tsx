@@ -4,6 +4,7 @@ import { en } from '../../i18n/en';
 import { format } from '../../i18n/format';
 import { skillBand } from '../../exams/ielts/bands';
 import { RunnerRepository } from '../../lib/storage/repository';
+import { AudioPlayer } from '../runner/AudioPlayer';
 import {
   answerLocationOffset,
   buildIssueUrl,
@@ -21,26 +22,6 @@ type LoadState =
   | { status: 'loading' }
   | { status: 'missing' }
   | { status: 'ready'; record: ResultInput; model: ResultsModel };
-
-/** Wait before seeking, including when switching between different part sources. */
-function waitForMetadata(audio: HTMLAudioElement, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) return Promise.reject(new Error('aborted'));
-  if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      window.clearTimeout(timeout);
-      audio.removeEventListener('loadedmetadata', ready);
-      audio.removeEventListener('error', failed);
-      signal.removeEventListener('abort', failed);
-    };
-    const ready = () => { cleanup(); resolve(); };
-    const failed = () => { cleanup(); reject(new Error('metadata unavailable')); };
-    const timeout = window.setTimeout(failed, 15_000);
-    audio.addEventListener('loadedmetadata', ready, { once: true });
-    audio.addEventListener('error', failed, { once: true });
-    signal.addEventListener('abort', failed, { once: true });
-  });
-}
 
 function Context({ question, listening }: { question: ResultQuestionModel; listening: boolean }): React.JSX.Element | null {
   if (question.context === undefined) return null;
@@ -63,10 +44,8 @@ function Context({ question, listening }: { question: ResultQuestionModel; liste
 
 export default function ResultsPage(): React.JSX.Element {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
-  const [audioStatus, setAudioStatus] = useState<string>('');
+  const [playback, setPlayback] = useState<{ src: string; offset: number; id: number } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const audio = useRef<HTMLAudioElement>(null);
-  const playback = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,35 +66,15 @@ export default function ResultsPage(): React.JSX.Element {
       }
     };
     void load();
-    return () => { cancelled = true; playback.current?.abort(); };
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (state.status !== 'loading') heading.current?.focus();
   }, [state.status]);
 
-  const playAnswer = async (src: string, start: number) => {
-    const player = audio.current;
-    if (!player) return;
-    playback.current?.abort();
-    const controller = new AbortController();
-    playback.current = controller;
-    setAudioStatus(messages.audioLoading);
-    try {
-      const changedSource = player.getAttribute('src') !== src;
-      if (changedSource) {
-        player.pause();
-        player.setAttribute('src', src);
-        player.load();
-      }
-      await waitForMetadata(player, controller.signal);
-      if (controller.signal.aborted) return;
-      player.currentTime = answerLocationOffset(start);
-      await player.play();
-      if (!controller.signal.aborted) setAudioStatus(messages.audioPlaying);
-    } catch {
-      if (!controller.signal.aborted) setAudioStatus(messages.audioError);
-    }
+  const playAnswer = (src: string, start: number): void => {
+    setPlayback((previous) => ({ src, offset: answerLocationOffset(start), id: (previous?.id ?? 0) + 1 }));
   };
 
   if (state.status !== 'ready') return (
@@ -162,11 +121,8 @@ export default function ResultsPage(): React.JSX.Element {
         </div>}
       </dl>
 
-      {initialAudio && <div className="space-y-2">
-        <audio ref={audio} src={initialAudio} controls preload="metadata" aria-label={messages.audioLabel} data-testid="results-audio"
-          className="w-full max-w-full" onError={() => setAudioStatus(messages.audioError)} />
-        <p role="status" aria-live="polite" className="text-sm text-slate-700">{audioStatus}</p>
-      </div>}
+      {initialAudio && <AudioPlayer src={playback?.src ?? initialAudio} mode="practice"
+        audioLabel={messages.audioLabel} audioTestId="results-audio" playbackRequest={playback ?? undefined} />}
 
       <section aria-labelledby="results-breakdown" className="space-y-3">
         <h2 id="results-breakdown" className="text-2xl font-semibold">{messages.breakdown}</h2>
@@ -214,7 +170,7 @@ export default function ResultsPage(): React.JSX.Element {
           <div className="mt-4 flex flex-wrap items-center gap-4">
             {model.skill === 'listening' && question.audio && question.evidence?.audioStart !== undefined &&
               <button type="button" className={buttonClass}
-                onClick={() => { void playAnswer(question.audio!, question.evidence!.audioStart!); }}>
+                onClick={() => playAnswer(question.audio!, question.evidence!.audioStart!)}>
                 {messages.playAnswer}
               </button>}
             <a className={linkClass} href={buildIssueUrl(brand.repoUrl, model.testId, question.questionId,

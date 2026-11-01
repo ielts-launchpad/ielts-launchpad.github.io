@@ -216,6 +216,7 @@ SEO: titles like "IELTS Launchpad — Free IELTS Academic Mock Tests with AI Fee
 
 ## 10. Non-functional
 - WCAG 2.2 AA: keyboard-only operable, visible focus, labels, contrast, `prefers-reduced-motion`. axe must pass with zero serious/critical violations.
+- Listening and Results share a custom audio player with hidden native media. Practice/Results have a seekable range; exam progress is read-only. Use slate-900 played progress, slate-200 unplayed track with a dark contrasting boundary, a visible thumb, and a visible focus ring; progress, thumb, boundary and focus indicators meet WCAG 1.4.11 (at least 3:1 against adjacent colours). Style Chromium and Firefox range tracks/thumbs. Display elapsed and total time, labelled Play/Pause controls, and spoken value text such as "0:05 of 0:24". Space/Enter activates playback controls; on the seek range it toggles playback. Arrow keys seek ±5 s in practice/Results only; exam cannot seek or pause.
 - Mobile-first; works on 360 px width.
 - CSP via `<meta http-equiv="Content-Security-Policy">` allowing only self, Turnstile, the Worker URL, Groq/Gemini API hosts.
 - No tracking, no cookies set by us.

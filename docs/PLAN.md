@@ -266,9 +266,9 @@
 <!-- meta: id=M4.1; label=code; milestone=M4; depends=M3.8; assignee= -->
 **Implements:** SPEC §5.
 
-**Acceptance criteria:** Exam mode plays once, no seek/pause, auto-advances parts, 2-minute review window then auto-submit; practice mode allows play/pause/seek/replay.
+**Acceptance criteria:** One shared custom player for Listening and Results, with hidden native audio; elapsed/total time text; labelled playback buttons; high-contrast Chromium/Firefox progress, boundary, thumb and focus styles meeting WCAG 1.4.11. Exam mode plays once, no seek/pause, read-only progress, auto-advances parts, 2-minute review window then auto-submit; practice/Results allow play/pause/seek/replay, Space/Enter playback and arrow-key ±5-second seeking.
 
-**Tests:** Unit — mode state machine (no-seek/auto-advance/review/submit). e2e — exam play-once + auto-advance; practice seek/replay. axe — player controls labelled.
+**Tests:** Unit — mode state machine (no-seek/auto-advance/review/submit), position/time helpers and actual CSS contrast ratios. e2e — exam play-once + auto-advance; live progress and elapsed/total text; practice/Results keyboard seek/playback and replay across sources. axe — labelled custom player on desktop and mobile 360px, including read-only exam progress.
 
 ### M4.2 Listening runner integration
 <!-- meta: id=M4.2; label=code; milestone=M4; depends=M4.1,M3.8; assignee= -->

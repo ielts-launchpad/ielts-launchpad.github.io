@@ -9,7 +9,7 @@ import { buildReadingRunnerData } from '../../src/engine/content/runner-data';
 import { mockRunnerFixture } from '../fixtures/reading-mock';
 import { expectNoA11yViolations } from './helpers/a11y';
 import { gotoReading, MOBILE, showQuestions, waitForAutosave } from './helpers/runner';
-import { gotoListening, waitListeningSaved } from './helpers/listening';
+import { endPart, gotoListening, waitListeningSaved } from './helpers/listening';
 
 const sample = loadAllTests({ contentDir: join(process.cwd(), 'content'), publicDir: join(process.cwd(), 'public'), includeDrafts: true })
   .find((content) => content.meta.id === 'sample-01');
@@ -121,6 +121,32 @@ test('listening answer-location seeks to audioStart minus three seconds and play
   await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeGreaterThanOrEqual(11);
   expect(await audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeLessThan(13);
   expect(await audio.evaluate((node) => (node as HTMLAudioElement).paused)).toBe(false);
+  await review.getByRole('button', { name: 'Play answer location' }).click();
+  await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeLessThan(7.2);
+  await expect.poll(async () => Number(await page.getByTestId('audio-seek').inputValue())).toBeGreaterThanOrEqual(5.2);
+});
+
+test('shared Results player reloads metadata and progress when replay switches audio parts', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-31T12:00:00Z') });
+  await page.goto('/test/mock-listening-fixture/listening');
+  await page.getByTestId('audio-play').click();
+  for (let part = 1; part <= 4; part += 1) {
+    await expect(page.getByTestId('listening-part')).toHaveText(`Part ${part}`);
+    await expect(page.getByTestId('audio-play')).toBeDisabled();
+    await endPart(page);
+  }
+  await expect(page.getByTestId('listening-review')).toBeVisible();
+  await page.clock.fastForward(120_000);
+  await waitListeningSaved(page);
+  await page.getByTestId('results-link').click();
+  const audio = page.getByTestId('results-audio');
+  for (const [question, part] of [['mock-q11', 2], ['mock-q1', 1]] as const) {
+    await page.getByTestId(`review-${question}`).getByRole('button', { name: 'Play answer location' }).click();
+    await expect(audio).toHaveAttribute('src', `/audio/academic/sample-01/part-1.opus?fixture-part=${part}`);
+    await expect.poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime)).toBeGreaterThanOrEqual(5.2);
+    expect(await audio.evaluate((element) => (element as HTMLAudioElement).currentTime)).toBeLessThan(7.2);
+    await expect(page.getByTestId('audio-time')).toContainText('of 0:24');
+  }
 });
 
 test('incorrect and blank answers show their actual error classifications', async ({ page }) => {
