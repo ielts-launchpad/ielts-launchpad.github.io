@@ -8,6 +8,7 @@ export const brand = {
   tagline: 'Free, open-source IELTS Academic practice with AI feedback',
   url: 'https://ielts-launchpad.github.io',
   repoUrl: 'https://github.com/ielts-launchpad/ielts-launchpad.github.io',
+  backupFilename: 'ielts-launchpad-backup.json',
 
   /** Donation / support links shown in the footer and on the Support page. */
   donate: {

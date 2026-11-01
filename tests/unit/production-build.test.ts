@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
@@ -25,6 +25,12 @@ it('unflagged production build contains no sample-01 or mock-fixture route', () 
     expect(existsSync(join(output, 'test/mock-listening-fixture'))).toBe(false);
     expect(existsSync(join(output, 'results/index.html'))).toBe(true);
     expect(existsSync(join(output, 'practice/sample-01'))).toBe(false);
+    const catalog = readFileSync(join(output, 'tests/index.html'), 'utf8');
+    expect(catalog).toContain('data-testid="catalog-empty"');
+    expect(catalog).not.toContain('data-testid="catalog-draft"');
+    expect(catalog).not.toContain('sample-01');
+    expect(catalog).not.toContain('Sample Practice 1');
+    expect(catalog).not.toContain('mock-fixture');
   } finally {
     rmSync(output, { recursive: true, force: true });
   }

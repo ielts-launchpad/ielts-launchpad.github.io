@@ -2,6 +2,7 @@
 import { join } from 'node:path';
 import { ContentError, findTestDirs, loadTest } from '../../src/engine/content/loader';
 import { validateTest, type Problem } from '../../src/engine/content/validate';
+import { loadTips } from '../../src/engine/content/tips-loader';
 
 /**
  * Content validation CLI (SPEC §3 rules 1–6). Validates every test (including
@@ -15,6 +16,13 @@ function main(): number {
 
   const dirs = findTestDirs(contentDir);
   const problems: Problem[] = [];
+
+  try {
+    loadTips(join(contentDir, 'tips.yaml'));
+  } catch (error) {
+    if (!(error instanceof ContentError)) throw error;
+    problems.push({ file: error.file, rule: 1, message: error.message });
+  }
 
   for (const dir of dirs) {
     try {

@@ -1,11 +1,16 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { en } from '@/i18n/en';
+import DashboardPage from '@/components/dashboard/DashboardPage';
+import { loadTips } from '@/engine/content/tips-loader';
+import { fileURLToPath } from 'node:url';
 
 const page = en.pages.dashboard;
+const tips = loadTips(fileURLToPath(new URL('../../content/tips.yaml', import.meta.url)));
 ---
 
 <BaseLayout title={page.title} description={page.description}>
   <h1 class="text-2xl font-bold">{page.heading}</h1>
   <p class="mt-4 text-slate-700">{page.intro}</p>
+  <DashboardPage tips={tips} client:load />
 </BaseLayout>

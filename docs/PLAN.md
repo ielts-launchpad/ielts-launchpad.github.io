@@ -310,7 +310,7 @@
 <!-- meta: id=M5.2; label=code; milestone=M5; depends=M3.1,M2.3; assignee= -->
 **Implements:** SPEC §6.
 
-**Acceptance criteria:** Band history chart per skill + overall; accuracy by `qtype` across attempts; error-class frequency; estimated current band (mean of latest result per skill; missing skills show "—"). Recharts; keyboard/screen-reader accessible summaries.
+**Acceptance criteria:** Band history chart per skill + overall; accuracy by `qtype` across attempts; error-class frequency; latest eligible band per skill (missing skills show "—"). Overall history/current estimates require all four eligible skill bands and use SPEC §4 rounding; partial sections never become bands or replace an eligible band. Recharts; keyboard/screen-reader accessible summaries.
 
 **Tests:** Unit — aggregation functions (latest-per-skill, qtype accuracy, error freq). e2e — charts render with seeded attempts. axe — chart alternatives present.
 

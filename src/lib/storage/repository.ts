@@ -14,6 +14,7 @@ import type {
 } from './db';
 import type { AnswerMap } from '../../engine/runner/types';
 import type { UserResponse } from '../../engine/grading/grade';
+import { backupSchema, mergeBackupData, normalizeStoredBackup, validateBackupRelations, type BackupData } from '../../engine/data/backup';
 
 export class RunnerRepository {
   constructor(private readonly db: RunnerDatabase = getDb()) {}
@@ -93,6 +94,10 @@ export class RunnerRepository {
     return this.db.results.get(attemptId);
   }
 
+  listResults(): Promise<ResultRecord[]> {
+    return this.db.results.toArray();
+  }
+
   // --- highlights & notes --------------------------------------------------
 
   async addHighlight(highlight: HighlightRecord): Promise<void> {
@@ -124,7 +129,49 @@ export class RunnerRepository {
     await this.db.settings.put(record);
   }
 
+  // --- data management -----------------------------------------------------
+
+  /** One read transaction gives every table the same point-in-time snapshot. */
+  exportData(): Promise<BackupData> {
+    return this.db.transaction('r', this.db.tables, async () => {
+      const data = normalizeStoredBackup(await this.readData());
+      validateBackupRelations(data);
+      return data;
+    });
+  }
+
+  /** Validate input, then validate the merged state before the first write. */
+  async importData(input: unknown): Promise<void> {
+    const incoming = backupSchema.parse(input);
+    await this.db.transaction('rw', this.db.tables, async () => {
+      mergeBackupData(normalizeStoredBackup(await this.readData()), incoming);
+      await this.db.attempts.bulkPut(incoming.attempts);
+      await this.db.answers.bulkPut(incoming.answers);
+      await this.db.results.bulkPut(incoming.results);
+      await this.db.highlights.bulkPut(incoming.highlights);
+      await this.db.settings.bulkPut(incoming.settings);
+    });
+  }
+
+  /** Clear records without closing/deleting the database or changing its schema. */
+  async deleteAllData(): Promise<void> {
+    await this.db.transaction('rw', this.db.tables, async () => {
+      await Promise.all([
+        this.db.attempts.clear(), this.db.answers.clear(), this.db.results.clear(),
+        this.db.highlights.clear(), this.db.settings.clear(),
+      ]);
+    });
+  }
+
   // --- internal ------------------------------------------------------------
+
+  private async readData() {
+    const [attempts, answers, results, highlights, settings] = await Promise.all([
+      this.db.attempts.toArray(), this.db.answers.toArray(), this.db.results.toArray(),
+      this.db.highlights.toArray(), this.db.settings.toArray(),
+    ]);
+    return { version: 1, attempts, answers, results, highlights, settings };
+  }
 
   private async touchAttempt(attemptId: string): Promise<void> {
     await this.db.attempts.update(attemptId, { updatedAt: Date.now() });
