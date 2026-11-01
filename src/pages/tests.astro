@@ -1,11 +1,22 @@
 ---
+import { join } from 'node:path';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { TestCatalog } from '@/components/catalog/TestCatalog';
+import { loadAllTests } from '@/engine/content/loader';
+import { buildCatalogCards } from '@/engine/content/catalog';
 import { en } from '@/i18n/en';
 
 const page = en.pages.tests;
+const includeDrafts = import.meta.env.DEV || process.env.INCLUDE_DRAFTS === 'true';
+const cards = buildCatalogCards(loadAllTests({
+  contentDir: join(process.cwd(), 'content'),
+  publicDir: join(process.cwd(), 'public'),
+  includeDrafts,
+}), includeDrafts);
 ---
 
 <BaseLayout title={page.title} description={page.description}>
   <h1 class="text-2xl font-bold">{page.heading}</h1>
   <p class="mt-4 text-slate-700">{page.intro}</p>
+  <TestCatalog client:load cards={cards} includeDrafts={includeDrafts} />
 </BaseLayout>

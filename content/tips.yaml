@@ -1,0 +1,35 @@
+# Original practice recommendations, CC BY-SA 4.0; not official IELTS guidance.
+- qtype: multiple-choice
+  text: 'Compare every option against the evidence. Check which detail makes the rejected options inaccurate.'
+- qtype: choose-n
+  text: 'Check each choice independently against the source, then count your selections before submitting.'
+- qtype: true-false-not-given
+  text: 'Separate a clear contradiction from a claim the passage never addresses. Do not fill missing information with outside knowledge.'
+- qtype: yes-no-not-given
+  text: 'Identify the writer’s view before judging the claim. Distinguish an opposing view from an unstated one.'
+- qtype: matching-headings
+  text: 'Summarise each paragraph in a few words before comparing headings. Choose its main point rather than an isolated example.'
+- qtype: matching-information
+  text: 'Look for the requested detail rather than the overall topic. Confirm the matching paragraph contains every part of the claim.'
+- qtype: matching-features
+  text: 'Track who or what each statement refers to. Check the evidence before assigning a feature to a name or item.'
+- qtype: matching-sentence-endings
+  text: 'Use meaning to narrow the options, then check that the completed sentence also fits grammatically.'
+- qtype: sentence-completion
+  text: 'Predict the kind of word that fits the gap. Use words supported by the source and check the stated limit.'
+- qtype: summary-completion
+  text: 'Read the whole summary first. Match each gap to the relevant source section and check the surrounding grammar.'
+- qtype: note-completion
+  text: 'Notice the heading and nearby notes to anticipate the missing detail. Check spelling and the word limit.'
+- qtype: table-completion
+  text: 'Use row and column headings to identify the expected information. Confirm units, numbers and spelling.'
+- qtype: flow-chart-completion
+  text: 'Follow the sequence of stages. Identify the action or item needed at each step without skipping ahead.'
+- qtype: form-completion
+  text: 'Use the field label to predict the answer type. Recheck names, numbers and any correction the speaker makes.'
+- qtype: diagram-labelling
+  text: 'Relate each label position to the description. Check which part, direction or function identifies the requested item.'
+- qtype: map-plan-labelling
+  text: 'Establish orientation and follow the described route. Use nearby landmarks to distinguish similar locations.'
+- qtype: short-answer
+  text: 'Identify precisely what the question asks. Give only the supported detail and stay within the answer limit.'

@@ -310,7 +310,7 @@
 <!-- meta: id=M5.2; label=code; milestone=M5; depends=M3.1,M2.3; assignee= -->
 **Implements:** SPEC §6.
 
-**Acceptance criteria:** Band history chart per skill + overall; accuracy by `qtype` across attempts; error-class frequency; estimated current band (mean of latest result per skill; missing skills show "—"). Recharts; keyboard/screen-reader accessible summaries.
+**Acceptance criteria:** Band history chart per skill + overall; accuracy by `qtype` across attempts; error-class frequency; latest eligible band per skill (missing skills show "—"). Overall history/current estimates require all four eligible skill bands and use SPEC §4 rounding; partial sections never become bands or replace an eligible band. Recharts; keyboard/screen-reader accessible summaries.
 
 **Tests:** Unit — aggregation functions (latest-per-skill, qtype accuracy, error freq). e2e — charts render with seeded attempts. axe — chart alternatives present.
 
@@ -396,7 +396,9 @@
 
 **Acceptance criteria:** Settings lets user paste Groq/Gemini key (IndexedDB only, never sent to our Worker); browser calls provider directly with shared prompts; Gemini sends audio for full Pronunciation; warning text (key stored locally, use spending limits, Google 18+); auto-fallback when Worker returns `DAILY_LIMIT` or is unavailable.
 
-**Tests:** Unit — adapter selection; key never included in Worker requests; fallback trigger logic. e2e (mocked) — own-key path renders results; warning shown.
+Store the user's own API key outside the exported tables (or exclude it explicitly); the export must never contain API keys. Add a test.
+
+**Tests:** Unit — adapter selection; key never included in Worker requests or exported backups (including partial exports with skipped records); fallback trigger logic. e2e (mocked) — own-key path renders results; warning shown.
 
 ### M6.9 Worker README & client config
 <!-- meta: id=M6.9; label=code; milestone=M6; depends=M6.1; assignee= -->
@@ -438,7 +440,13 @@
 <!-- meta: id=M7.3; label=code; milestone=M7; depends=M0.1; assignee= -->
 **Implements:** SPEC §2.
 
-**Acceptance criteria:** Script generates `.opus` audio with word timestamps aligned to transcript `[mm:ss.s]`; outputs to `public/audio/...`; no secrets committed.
+**Acceptance criteria:**
+
+- Script generates `.opus` audio with word timestamps aligned to transcript `[mm:ss.s]`; outputs to `public/audio/...`; no secrets committed.
+- Synthesize whole turns/sentences; never split sentences to measure timing.
+- Derive `evidence.audioStart` and transcript timestamps from word-boundary timings: Azure `WordBoundary` events; for a Kokoro fallback, use forced alignment such as Whisper word timestamps or aeneas. Round timestamps to 0.1 s.
+- Use the full-precision model when falling back to Kokoro.
+- Human listening approval is required before setting `status: published`.
 
 **Tests:** Unit — timestamp parser/formatter; dry-run without network.
 
